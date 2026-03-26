@@ -45,7 +45,3 @@ type WebAppList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []WebApp `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&WebApp{}, &WebAppList{})
-}

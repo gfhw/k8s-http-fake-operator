@@ -125,7 +125,3 @@ type HTTPTestStubList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HTTPTestStub `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&HTTPTestStub{}, &HTTPTestStubList{})
-}

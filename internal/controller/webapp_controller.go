@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	webappv1 "github.com/example/webapp-operator/api/v1"
+	webappv1 "httpteststub.example.com/api/v1"
 )
 
 // WebAppReconciler reconciles a WebApp object

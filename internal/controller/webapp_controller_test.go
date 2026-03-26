@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	webappv1 "github.com/example/webapp-operator/api/v1"
+	webappv1 "httpteststub.example.com/api/v1"
 )
 
 var _ = Describe("WebApp Controller", func() {

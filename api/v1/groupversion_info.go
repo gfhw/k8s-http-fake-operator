@@ -1,19 +1,26 @@
 package v1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// GroupVersion is group version used to register these objects
 var (
-	GroupVersion = schema.GroupVersion{
+	SchemeGroupVersion = schema.GroupVersion{
 		Group:   "httpteststub.example.com",
 		Version: "v1",
 	}
 
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
-
-	// AddToScheme adds the types in this group-version to the given scheme.
-	AddToScheme = SchemeBuilder.AddToScheme
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme   = SchemeBuilder.AddToScheme
 )
+
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&WebApp{},
+		&WebAppList{},
+		&HTTPTestStub{},
+		&HTTPTestStubList{},
+	)
+	return nil
+}

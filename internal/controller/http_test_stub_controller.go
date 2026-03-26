@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	httpteststubv1 "github.com/example/webapp-operator/api/v1"
+	httpteststubv1 "httpteststub.example.com/api/v1"
 )
 
 // HTTPTestStubReconciler reconciles a HTTPTestStub object
