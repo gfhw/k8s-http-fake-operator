@@ -125,6 +125,14 @@ main() {
         exit 1
     fi
 
+    # Build binary
+    log_info "Building binary..."
+    if ! go build -o "$BUILD_CONTEXT/manager" "$BUILD_CONTEXT/cmd/main.go"; then
+        log_error "Binary build failed!"
+        exit 1
+    fi
+    log_info "Binary built successfully!"
+
     # Build Docker image
     log_info "Building Docker image..."
     
