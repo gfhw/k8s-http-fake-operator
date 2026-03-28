@@ -4,9 +4,11 @@ RUN apk --no-cache add ca-certificates bash
 
 WORKDIR /root/
 
-# Debug: list files in build context
-RUN ls -la /
-RUN ls -la build/ || echo "build dir not found"
+# Debug: list all files in build context root
+RUN echo "=== Listing / ===" && ls -la /
+RUN echo "=== Listing current dir ===" && ls -la .
+RUN echo "=== Listing build/ ===" && ls -la build/ 2>/dev/null || echo "build/ not found"
+RUN echo "=== Find manager file ===" && find / -name "manager" -type f 2>/dev/null || echo "manager not found"
 
 COPY build/manager .
 
