@@ -1,4 +1,4 @@
-FROM golang:1.26.1-alpine AS builder
+FROM registry.cn-hangzhou.aliyuncs.com/google_containers/golang:1.26.1-alpine AS builder
 
 WORKDIR /workspace
 
@@ -12,7 +12,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager ./cmd/main.go
 
-FROM alpine:latest
+FROM registry.cn-hangzhou.aliyuncs.com/google_containers/alpine:latest
 
 RUN apk --no-cache add ca-certificates tzdata bash
 
