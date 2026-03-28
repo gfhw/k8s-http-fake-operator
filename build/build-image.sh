@@ -8,8 +8,8 @@ set -e
 # Configuration
 IMAGE_NAME="${IMAGE_NAME:-k8s-http-fake-operator}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-DOCKERFILE="${DOCKERFILE:-Dockerfile}"
-BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
+DOCKERFILE="${DOCKERFILE:-build/Dockerfile}"
+BUILD_CONTEXT="${BUILD_CONTEXT:-..}"
 NO_CACHE="${NO_CACHE:-false}"
 SKIP_BUILD="${SKIP_BUILD:-false}"
 
@@ -135,19 +135,19 @@ main() {
     # Build binary (unless skipped)
     if [ "$SKIP_BUILD" = "false" ]; then
         log_info "Building binary..."
-        if ! go build -o "manager" "../cmd/main.go"; then
+        if ! go build -o "build/manager" "../cmd/main.go"; then
             log_error "Binary build failed!"
             exit 1
         fi
         log_info "Binary built successfully!"
     else
         log_info "Skipping binary build step..."
-        if [ ! -f "manager" ]; then
-            log_error "Binary not found: manager"
+        if [ ! -f "build/manager" ]; then
+            log_error "Binary not found: build/manager"
             log_error "Please build the binary first or remove --skip-build flag"
             exit 1
         fi
-        log_info "Using existing binary: manager"
+        log_info "Using existing binary: build/manager"
     fi
 
     # Build Docker image
