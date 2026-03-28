@@ -1,5 +1,3 @@
 #!/bin/bash
 
-echo '{"message": "Default response", "type": "default", "timestamp": '$(date +%s)'}'
-echo '{"Content-Type": "application/json"}'
-echo '200'
+echo '{"body": {"message": "Default response", "type": "default", "timestamp": '$(date +%s)'}, "headers": {"Content-Type": "application/json"}, "status": 200}'

@@ -1,5 +1,3 @@
 #!/bin/bash
 
-echo '{"message": "Hello from script!", "timestamp": '$(date +%s)', "env_var": "'$CUSTOM_VAR'"}'
-echo '{"Content-Type": "application/json"}'
-echo '200'
+echo '{"body": {"message": "Hello from script!", "timestamp": '$(date +%s)', "env_var": "'$CUSTOM_VAR'"}, "headers": {"Content-Type": "application/json"}, "status": 200}'

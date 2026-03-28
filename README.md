@@ -323,20 +323,27 @@ spec:
 
 **脚本输出格式**：
 
-脚本需要输出三行 JSON 格式的内容：
-1. 第一行：响应体（JSON 格式）
-2. 第二行：响应头（JSON 格式，可选）
-3. 第三行：HTTP 状态码（数字，可选，默认 200）
+脚本输出单行 JSON 格式，包含响应体、响应头和状态码：
+
+```json
+{
+  "body": {"message": "Hello from script!", "timestamp": 1234567890},
+  "headers": {"Content-Type": "application/json"},
+  "status": 200
+}
+```
+
+**字段说明**：
+- `body`: 响应体内容（JSON 格式）
+- `headers`: 响应头（可选）
+- `status`: HTTP 状态码（可选，默认 200）
 
 **示例脚本**（`example.sh`）：
 
 ```bash
 #!/bin/bash
 
-echo '{"message": "Hello from script!", "timestamp": '$(date +%s)', "env_var": "'$CUSTOM_VAR'"}'
-echo '{"Content-Type": "application/json"}'
-echo '200'
-```
+echo '{"body": {"message": "Hello from script!", "timestamp": '$(date +%s)', "env_var": "'$CUSTOM_VAR'"}, "headers": {"Content-Type": "application/json"}, "status": 200}'
 
 **延迟响应示例**：
 
@@ -374,9 +381,7 @@ DELAY_SECONDS=${1:-5}
 echo "Sleeping for $DELAY_SECONDS seconds..."
 sleep $DELAY_SECONDS
 
-echo '{"message": "Delayed response", "delay": "'$DELAY_SECONDS'", "timestamp": '$(date +%s)'}'
-echo '{"Content-Type": "application/json"}'
-echo '200'
+echo '{"body": {"message": "Delayed response", "delay": "'$DELAY_SECONDS'", "timestamp": '$(date +%s)'}, "headers": {"Content-Type": "application/json"}, "status": 200}'
 ```
 
 **脚本配置说明**：

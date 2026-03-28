@@ -120,16 +120,39 @@ func (e *ScriptExecutor) buildEnvironment(script *httpteststubv1.Script, request
 	return env
 }
 
+type ScriptOutput struct {
+	Body    interface{}       `json:"body"`
+	Headers map[string]string `json:"headers,omitempty"`
+	Status  int               `json:"status,omitempty"`
+}
+
 func ParseScriptOutput(output []byte) (interface{}, map[string]string, int) {
-	var result interface{}
 	var headers map[string]string
 	statusCode := 200
 
-	lines := strings.Split(string(output), "\n")
+	lines := strings.Split(strings.TrimRight(string(output), "\n"), "\n")
 	if len(lines) == 0 {
 		return nil, nil, 500
 	}
 
+	trimmedLine := strings.TrimSpace(lines[0])
+	if strings.HasPrefix(trimmedLine, "{") && strings.HasSuffix(trimmedLine, "}") {
+		var scriptOutput ScriptOutput
+		if err := json.Unmarshal([]byte(trimmedLine), &scriptOutput); err == nil {
+			body := scriptOutput.Body
+			if scriptOutput.Headers != nil {
+				headers = scriptOutput.Headers
+			} else {
+				headers = make(map[string]string)
+			}
+			if scriptOutput.Status > 0 {
+				statusCode = scriptOutput.Status
+			}
+			return body, headers, statusCode
+		}
+	}
+
+	var result interface{}
 	if err := json.Unmarshal([]byte(lines[0]), &result); err == nil {
 		if len(lines) > 1 {
 			if err := json.Unmarshal([]byte(lines[1]), &headers); err != nil {

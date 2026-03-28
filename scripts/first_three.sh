@@ -1,5 +1,3 @@
 #!/bin/bash
 
-echo '{"message": "First three requests", "type": "first", "timestamp": '$(date +%s)'}'
-echo '{"Content-Type": "application/json"}'
-echo '200'
+echo '{"body": {"message": "First three requests", "type": "first", "timestamp": '$(date +%s)'}, "headers": {"Content-Type": "application/json"}, "status": 200}'
