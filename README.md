@@ -42,36 +42,18 @@
 
 - Kubernetes 集群 (>= 1.20)
 - kubectl 已配置
-- Helm 3 (可选，用于 Helm 部署)
-- Docker (用于构建镜像)
+- Helm 3 (用于 Helm 部署)
 
-### 安装 CRD
+### 部署
 
-```bash
-kubectl apply -f config/crd/bases/httpteststub.example.com_httpteststubs.yaml
-```
-
-### 部署方式一：使用 Helm Chart（推荐）
+使用 Helm Chart 部署（推荐，CRD 会自动安装）：
 
 ```bash
-# 添加 Helm 仓库（如果需要）
-# helm repo add k8s-http-fake-operator <repo-url>
-
-# 安装 Operator
+# 安装 Operator（CRD 会自动创建）
 helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator
 
 # 查看部署状态
 kubectl get pods -l app.kubernetes.io/name=k8s-http-fake-operator
-```
-
-### 部署方式二：使用 Kubectl
-
-```bash
-# 构建镜像（可选，或使用预构建镜像）
-docker build -t k8s-http-fake-operator:latest .
-
-# 部署
-kubectl apply -f config/manager/manager.yaml
 ```
 
 ## 使用示例
@@ -128,9 +110,9 @@ spec:
 EOF
 ```
 
-### 2. 通配符匹配
+### 2. 通配符与正则匹配
 
-支持多个通配符的复杂模式匹配：
+支持精确匹配、通配符匹配和正则表达式匹配三种 URL 匹配模式：
 
 ```yaml
 apiVersion: httpteststub.example.com/v1
@@ -159,9 +141,27 @@ spec:
             name: "Jane Smith"
 ```
 
-**复杂模式示例**：
+**URL 匹配类型说明**：
+
+| 类型 | 字段 | 示例 | 说明 |
+|------|------|------|------|
+| `exact` | `pattern` | `/api/health` | 精确匹配 |
+| `pattern` | `pattern` | `/api/users/*/aa` | 通配符匹配，`*` 匹配任意字符串 |
+| `regex` | `regex` | `/api/users/\d+` | 正则表达式匹配 |
+
+**通配符匹配示例**：
 
 ```yaml
+# 精确匹配
+url:
+  type: exact
+  pattern: /api/health
+
+# 匹配 /api/users/123, /api/users/456 等
+url:
+  type: pattern
+  pattern: /api/users/*
+
 # 匹配 /api/users/123/aa, /api/users/456/aa 等
 url:
   type: pattern
@@ -173,31 +173,23 @@ url:
   pattern: /api/*/users/*/details
 ```
 
-### 3. 正则表达式匹配
+**正则表达式匹配示例**：
 
 ```yaml
-apiVersion: httpteststub.example.com/v1
-kind: HTTPTestStub
-metadata:
-  name: user-by-id
-  namespace: default
-spec:
-  protocol: http
-  request:
-    method: GET
-    url:
-      type: regex
-      regex: /api/users/[0-9]+
-  response:
-    type: static
-    static:
-      status: 200
-      headers:
-        Content-Type: application/json
-      body:
-        id: 123
-        name: "Test User"
-        email: "test@example.com"
+# 匹配 /api/users/123, /api/users/456 等
+url:
+  type: regex
+  regex: /api/users/[0-9]+
+
+# 匹配 /api/users/123/items/456 等
+url:
+  type: regex
+  regex: /api/users/\d+/items/\d+
+
+# 匹配 /api/v1/users/123, /api/v2/users/456 等
+url:
+  type: regex
+  regex: /api/v[0-9]+/users/\d+
 ```
 
 ### 4. 计数器响应（按请求次数返回不同响应）
