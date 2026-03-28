@@ -11,6 +11,7 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 DOCKERFILE="${DOCKERFILE:-Dockerfile}"
 BUILD_CONTEXT="${BUILD_CONTEXT:-..}"
 NO_CACHE="${NO_CACHE:-false}"
+SKIP_BUILD="${SKIP_BUILD:-false}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,6 +45,7 @@ OPTIONS:
     -f, --dockerfile DOCKERFILE Path to Dockerfile (default: Dockerfile)
     -c, --context BUILD_CONTEXT Build context directory (default: .)
     --no-cache                  Build without using cache
+    --skip-build                Skip binary build step (use existing binary)
     -h, --help                  Show this help message
 
 ENVIRONMENT VARIABLES:
@@ -52,6 +54,7 @@ ENVIRONMENT VARIABLES:
     DOCKERFILE                  Path to Dockerfile
     BUILD_CONTEXT               Build context directory
     NO_CACHE                    Build without using cache (true/false)
+    SKIP_BUILD                  Skip binary build step (true/false)
 
 EXAMPLES:
     # Build with default settings
@@ -92,6 +95,10 @@ while [[ $# -gt 0 ]]; do
             NO_CACHE="true"
             shift
             ;;
+        --skip-build)
+            SKIP_BUILD="true"
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -125,13 +132,23 @@ main() {
         exit 1
     fi
 
-    # Build binary
-    log_info "Building binary..."
-    if ! go build -o "$BUILD_CONTEXT/manager" "$BUILD_CONTEXT/cmd/main.go"; then
-        log_error "Binary build failed!"
-        exit 1
+    # Build binary (unless skipped)
+    if [ "$SKIP_BUILD" = "false" ]; then
+        log_info "Building binary..."
+        if ! go build -o "$BUILD_CONTEXT/manager" "$BUILD_CONTEXT/cmd/main.go"; then
+            log_error "Binary build failed!"
+            exit 1
+        fi
+        log_info "Binary built successfully!"
+    else
+        log_info "Skipping binary build step..."
+        if [ ! -f "$BUILD_CONTEXT/manager" ]; then
+            log_error "Binary not found: $BUILD_CONTEXT/manager"
+            log_error "Please build the binary first or remove --skip-build flag"
+            exit 1
+        fi
+        log_info "Using existing binary: $BUILD_CONTEXT/manager"
     fi
-    log_info "Binary built successfully!"
 
     # Build Docker image
     log_info "Building Docker image..."
