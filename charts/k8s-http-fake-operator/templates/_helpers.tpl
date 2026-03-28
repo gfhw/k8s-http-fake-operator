@@ -60,6 +60,19 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Get API Group name
+*/}}
+{{- define "k8s-http-fake-operator.apiGroup" -}}
+{{- if .Values.apiGroup.fullName }}
+{{- .Values.apiGroup.fullName }}
+{{- else if .Values.apiGroup.suffix }}
+{{- printf "httpteststub.%s.com" .Values.apiGroup.suffix }}
+{{- else }}
+{{- "httpteststub.example.com" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Get default values for required parameters
 */}}
 {{- define "k8s-http-fake-operator.defaultImageRepository" -}}

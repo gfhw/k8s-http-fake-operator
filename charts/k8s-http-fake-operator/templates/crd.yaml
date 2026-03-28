@@ -1,12 +1,12 @@
----
+{{- $apiGroup := include "k8s-http-fake-operator.apiGroup" . -}}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
-  name: httpteststubs.httpteststub.example.com
+  name: httpteststubs.{{ $apiGroup }}
 spec:
-  group: httpteststub.example.com
+  group: {{ $apiGroup }}
   names:
     kind: HTTPTestStub
     listKind: HTTPTestStubList

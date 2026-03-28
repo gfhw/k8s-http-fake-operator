@@ -1,4 +1,5 @@
-apiVersion: httpteststub.example.com/v1
+{{- $apiGroup := include "k8s-http-fake-operator.apiGroup" . -}}
+apiVersion: {{ $apiGroup }}/v1
 kind: HTTPTestStub
 metadata:
   name: static-response
@@ -16,11 +17,9 @@ spec:
       status: 200
       headers:
         Content-Type: application/json
-      body:
-        status: "healthy"
-        message: "Service is running"
+      body: '{"status": "healthy", "message": "Service is running"}'
 ---
-apiVersion: httpteststub.example.com/v1
+apiVersion: {{ $apiGroup }}/v1
 kind: HTTPTestStub
 metadata:
   name: pattern-response
@@ -38,14 +37,9 @@ spec:
       status: 200
       headers:
         Content-Type: application/json
-      body:
-        users:
-          - id: 1
-            name: "John Doe"
-          - id: 2
-            name: "Jane Smith"
+      body: '{"users": [{"id": 1, "name": "John Doe"}, {"id": 2, "name": "Jane Smith"}]}'
 ---
-apiVersion: httpteststub.example.com/v1
+apiVersion: {{ $apiGroup }}/v1
 kind: HTTPTestStub
 metadata:
   name: counter-response
@@ -72,18 +66,14 @@ spec:
             status: 200
             headers:
               Content-Type: application/json
-            body:
-              message: "First three requests"
-              count: 1
+            body: '{"message": "First three requests", "count": 1}'
         - rule:
             type: default
           response:
             status: 200
             headers:
               Content-Type: application/json
-            body:
-              message: "Default response"
-              count: 4
+            body: '{"message": "Default response", "count": 4}'
       counter:
         reset: true
         resetAfter: 5

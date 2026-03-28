@@ -45,6 +45,9 @@ spec:
             - name: health
               containerPort: {{ include "k8s-http-fake-operator.defaultHealthPort" . }}
               protocol: TCP
+          env:
+            - name: HTTP_TEST_STUB_API_GROUP
+              value: {{ include "k8s-http-fake-operator.apiGroup" . }}
           volumeMounts:
             - name: config
               mountPath: /config
