@@ -9,7 +9,7 @@ set -e
 IMAGE_NAME="${IMAGE_NAME:-k8s-http-fake-operator}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 DOCKERFILE="${DOCKERFILE:-Dockerfile}"
-BUILD_CONTEXT="${BUILD_CONTEXT:-.}"
+BUILD_CONTEXT="${BUILD_CONTEXT:-..}"
 NO_CACHE="${NO_CACHE:-false}"
 
 # Colors for output
