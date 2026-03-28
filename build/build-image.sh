@@ -135,19 +135,19 @@ main() {
     # Build binary (unless skipped)
     if [ "$SKIP_BUILD" = "false" ]; then
         log_info "Building binary..."
-        if ! go build -o "build/manager" "../cmd/main.go"; then
+        if ! go build -o "manager" "../cmd/main.go"; then
             log_error "Binary build failed!"
             exit 1
         fi
         log_info "Binary built successfully!"
     else
         log_info "Skipping binary build step..."
-        if [ ! -f "build/manager" ]; then
-            log_error "Binary not found: build/manager"
+        if [ ! -f "manager" ]; then
+            log_error "Binary not found: manager"
             log_error "Please build the binary first or remove --skip-build flag"
             exit 1
         fi
-        log_info "Using existing binary: build/manager"
+        log_info "Using existing binary: manager"
     fi
 
     # Build Docker image
