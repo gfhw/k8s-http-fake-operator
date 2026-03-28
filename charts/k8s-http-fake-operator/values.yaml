@@ -69,8 +69,9 @@ tolerations: []
 affinity: {}
 
 tls:
-  enabled: false
-  certSecretName: ""
+  enabled: true
+  autoGenerate: true
+  certSecretName: "k8s-http-fake-operator-tls"
   certPath: "/etc/tls/tls.crt"
   keyPath: "/etc/tls/tls.key"
 

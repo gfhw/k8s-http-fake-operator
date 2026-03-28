@@ -117,3 +117,19 @@ Validate cluster IP format if provided
   {{- end }}
 {{- end }}
 {{- end }}
+
+{{- define "k8s-http-fake-operator.genCert" -}}
+{{- $fullName := include "k8s-http-fake-operator.fullname" . -}}
+{{- $namespace := .Release.Namespace -}}
+{{- $ca := genCA (printf "%s-ca" $fullName) 365 -}}
+{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) nil 365 $ca -}}
+{{ $cert.Cert }},{{ $cert.Key }}
+{{- end -}}
+
+{{- define "k8s-http-fake-operator.genKey" -}}
+{{- $fullName := include "k8s-http-fake-operator.fullname" . -}}
+{{- $namespace := .Release.Namespace -}}
+{{- $ca := genCA (printf "%s-ca" $fullName) 365 -}}
+{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) nil 365 $ca -}}
+{{ $cert.Key }}
+{{- end -}}

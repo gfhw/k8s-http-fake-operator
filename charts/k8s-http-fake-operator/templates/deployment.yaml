@@ -98,7 +98,11 @@ spec:
         - name: tls-certs
           secret:
             secretName: {{ include "k8s-http-fake-operator.defaultTLSCertSecretName" . }}
+            {{- if .Values.tls.autoGenerate }}
+            optional: false
+            {{- else }}
             optional: true
+            {{- end }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
