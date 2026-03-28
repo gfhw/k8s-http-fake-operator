@@ -11,7 +11,7 @@ RUN chmod +x /manager
 RUN mkdir -p /config
 
 # Copy the entrypoint script
-COPY scripts/entrypoint.sh /entrypoint.sh
+COPY ../scripts/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
