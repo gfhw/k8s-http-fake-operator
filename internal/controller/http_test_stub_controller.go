@@ -131,16 +131,38 @@ func matchPattern(url, pattern string) bool {
 		return true
 	}
 
-	if strings.Contains(pattern, "*") {
-		patternParts := strings.Split(pattern, "*")
-		if len(patternParts) == 2 {
-			prefix := patternParts[0]
-			suffix := patternParts[1]
-			return strings.HasPrefix(url, prefix) && strings.HasSuffix(url, suffix)
-		}
+	// 处理多个通配符的情况
+	patternParts := strings.Split(pattern, "*")
+	if len(patternParts) == 1 {
+		// 没有通配符，直接比较
+		return url == pattern
 	}
 
-	return false
+	// 检查前缀
+	if patternParts[0] != "" && !strings.HasPrefix(url, patternParts[0]) {
+		return false
+	}
+
+	// 检查后缀
+	if patternParts[len(patternParts)-1] != "" && !strings.HasSuffix(url, patternParts[len(patternParts)-1]) {
+		return false
+	}
+
+	// 检查中间部分
+	currentIndex := len(patternParts[0])
+	for i := 1; i < len(patternParts)-1; i++ {
+		part := patternParts[i]
+		if part == "" {
+			continue
+		}
+		index := strings.Index(url[currentIndex:], part)
+		if index == -1 {
+			return false
+		}
+		currentIndex += index + len(part)
+	}
+
+	return true
 }
 
 func matchRegex(url, regex string) bool {

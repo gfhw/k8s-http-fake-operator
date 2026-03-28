@@ -1,0 +1,21 @@
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: script-delay-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/delay
+  response:
+    type: script
+    script:
+      name: delay-script
+      type: shell
+      path: delay.sh
+      timeout: 15
+      args:
+        - "5"

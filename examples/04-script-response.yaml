@@ -1,0 +1,23 @@
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: script-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/script
+  response:
+    type: script
+    script:
+      name: example-script
+      type: shell
+      path: example.sh
+      timeout: 10
+      args:
+        - "/scripts"
+      env:
+        CUSTOM_VAR: "custom_value"

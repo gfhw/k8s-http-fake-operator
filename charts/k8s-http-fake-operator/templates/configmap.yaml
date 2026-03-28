@@ -75,6 +75,12 @@ data:
     ARGS="$ARGS --tls-cert-file={{ .Values.operator.server.tlsCertFile }}"
     ARGS="$ARGS --tls-key-file={{ .Values.operator.server.tlsKeyFile }}"
     
+    # Scripts configuration
+    {{- if .Values.operator.scripts.enabled }}
+    export SCRIPT_DIR="{{ .Values.operator.scripts.directory }}"
+    echo "Scripts directory: $SCRIPT_DIR"
+    {{- end }}
+    
     echo "Starting manager with arguments: $ARGS"
     
     # Infinite loop to keep the container running and restart the manager if it crashes

@@ -102,7 +102,7 @@ spec:
         timestamp: "2024-01-01T00:00:00Z"
 ```
 
-应用配置：
+**直接应用配置**：
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: httpteststub.example.com/v1
@@ -130,6 +130,8 @@ EOF
 
 ### 2. 通配符匹配
 
+支持多个通配符的复杂模式匹配：
+
 ```yaml
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
@@ -155,6 +157,20 @@ spec:
             name: "John Doe"
           - id: 2
             name: "Jane Smith"
+```
+
+**复杂模式示例**：
+
+```yaml
+# 匹配 /api/users/123/aa, /api/users/456/aa 等
+url:
+  type: pattern
+  pattern: /api/users/*/aa
+
+# 匹配 /api/v1/users/123/details, /api/v2/users/456/details 等
+url:
+  type: pattern
+  pattern: /api/*/users/*/details
 ```
 
 ### 3. 正则表达式匹配
@@ -275,6 +291,135 @@ spec:
         message: "Created successfully"
 ```
 
+### 6. 脚本响应
+
+支持通过 Shell 脚本动态生成响应，实现更复杂的业务逻辑：
+
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: script-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/script
+  response:
+    type: script
+    script:
+      name: example-script
+      type: shell
+      path: example.sh
+      timeout: 10
+      args:
+        - "/scripts"
+      env:
+        CUSTOM_VAR: "custom_value"
+```
+
+**脚本输出格式**：
+
+脚本需要输出三行 JSON 格式的内容：
+1. 第一行：响应体（JSON 格式）
+2. 第二行：响应头（JSON 格式，可选）
+3. 第三行：HTTP 状态码（数字，可选，默认 200）
+
+**示例脚本**（`example.sh`）：
+
+```bash
+#!/bin/bash
+
+echo '{"message": "Hello from script!", "timestamp": '$(date +%s)', "env_var": "'$CUSTOM_VAR'"}'
+echo '{"Content-Type": "application/json"}'
+echo '200'
+```
+
+**延迟响应示例**：
+
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: script-delay-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/delay
+  response:
+    type: script
+    script:
+      name: delay-script
+      type: shell
+      path: delay.sh
+      timeout: 15
+      args:
+        - "5"
+```
+
+**延迟脚本示例**（`delay.sh`）：
+
+```bash
+#!/bin/bash
+
+DELAY_SECONDS=${1:-5}
+
+echo "Sleeping for $DELAY_SECONDS seconds..."
+sleep $DELAY_SECONDS
+
+echo '{"message": "Delayed response", "delay": "'$DELAY_SECONDS'", "timestamp": '$(date +%s)'}'
+echo '{"Content-Type": "application/json"}'
+echo '200'
+```
+
+**脚本配置说明**：
+
+| 字段 | 类型 | 说明 | 示例值 |
+|------|------|------|--------|
+| `name` | string | 脚本名称 | `example-script` |
+| `type` | string | 脚本类型（shell, python, py） | `shell` |
+| `path` | string | 脚本文件路径（相对或绝对路径） | `example.sh` |
+| `timeout` | int | 超时时间（秒） | `10` |
+| `args` | []string | 脚本参数 | `["5"]` |
+| `env` | map[string]string | 环境变量 | `{"CUSTOM_VAR": "value"}` |
+| `content` | string | 内联脚本内容（可选） | `#!/bin/bash\necho "hello"` |
+
+**环境变量**：
+
+脚本执行时会自动注入以下环境变量：
+- `REQUEST_METHOD`：HTTP 请求方法
+- `REQUEST_PATH`：请求路径
+- `REQUEST_HEADERS`：请求头（JSON 格式）
+- `REQUEST_BODY`：请求体
+
+**启用脚本功能**：
+
+在 `values.yaml` 中配置：
+
+```yaml
+operator:
+  scripts:
+    enabled: true
+    directory: "/scripts"
+    hostPath: "/path/to/scripts/on/host"
+    readOnly: true
+```
+
+部署时指定脚本目录：
+
+```bash
+helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator \
+  --set operator.scripts.enabled=true \
+  --set operator.scripts.hostPath=/path/to/scripts/on/host
+```
+
 ## 测试服务
 
 ### 端口转发
@@ -386,136 +531,49 @@ curl http://localhost:8081/healthz | jq .
 | `headers` | map[string]string | 否 | 响应头 |
 | `body` | interface{} | 否 | 响应体（任意 JSON 类型） |
 
+#### ResponseRule 字段
+
+| 字段 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| `rule` | Rule | 是 | 规则条件 |
+| `response` | Static | 否 | 静态响应配置（与 script 二选一） |
+| `script` | Script | 否 | 脚本响应配置（与 response 二选一） |
+
+#### Rule 字段
+
+| 字段 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| `type` | string | 是 | 规则类型：`range`, `default` |
+| `start` | int | 否 | 范围开始（type=range 时使用） |
+| `end` | int | 否 | 范围结束（type=range 时使用） |
+
 ### Helm Chart 配置
 
-#### Service IP 配置
+#### 核心配置项
 
-在 `values.yaml` 文件中，你可以通过 `service.clusterIP` 字段指定自定义的集群 IP 地址：
+| 配置类别 | 字段 | 说明 | 示例值 |
+|---------|------|------|--------|
+| **Service 配置** | `service.type` | Service 类型 | `ClusterIP` |
+|  | `service.clusterIP` | 自定义集群 IP（可选，支持 IPv4/IPv6） | `10.96.0.100` 或 `2001:db8::1` |
+|  | `service.httpPort` | HTTP 服务端口 | `8080` |
+|  | `service.httpsPort` | HTTPS 服务端口 | `8443` |
+|  | `service.healthPort` | 健康检查端口 | `8081` |
+| **API Group 配置** | `apiGroup.suffix` | API Group 后缀（生成 `httpteststub.<suffix>.com`） | `service1` |
+|  | `apiGroup.fullName` | 完整 API Group 名称（覆盖 suffix） | `my-custom-api-group.io` |
+| **镜像配置** | `image.repository` | Docker 镜像仓库 | `k8s-http-fake-operator` |
+|  | `image.tag` | 镜像标签 | `latest` |
+| **TLS 配置** | `tls.enabled` | 是否启用 TLS | `true` |
+|  | `tls.certSecretName` | TLS 证书密钥名称（启用 TLS 时必填） | `my-tls-secret` |
+| **Operator 配置** | `operator.server.httpPort` | Operator HTTP 端口 | `8080` |
+|  | `operator.server.httpsPort` | Operator HTTPS 端口 | `8443` |
+| **脚本配置** | `operator.scripts.enabled` | 是否启用脚本功能 | `true` |
+|  | `operator.scripts.directory` | 脚本目录路径 | `/scripts` |
+|  | `operator.scripts.hostPath` | 宿主机脚本目录路径 | `/path/to/scripts` |
+|  | `operator.scripts.readOnly` | 脚本目录只读挂载 | `true` |
 
-```yaml
-service:
-  type: ClusterIP
-  clusterIP: "10.96.0.100"  # 自定义的集群 IP（支持 IPv4 和 IPv6）
-  httpPort: 8080
-  httpsPort: 8443
-  healthPort: 8081
-```
+#### 配置示例
 
-**配置说明**：
-- **`clusterIP`**：可选字段，指定自定义的集群 IP 地址
-  - 留空时，Kubernetes 会自动分配 IP
-  - 填写时，必须使用集群 CIDR 范围内的有效 IPv4 或 IPv6 地址
-  - 不能使用已被其他 Service 使用的 IP
-
-**验证规则**：
-- 必须是有效的 IPv4 或 IPv6 地址格式（如 `10.96.0.100` 或 `2001:db8::1`）
-- 如果格式不正确，部署会失败并显示错误信息
-
-#### API Group 配置（多部署支持）
-
-通过动态 API Group 配置，你可以在同一 Kubernetes 集群中部署多套 k8s-http-fake-operator 实例，每套实例监听不同的 CRD，实现完全隔离的多服务打桩。
-
-**配置方法**：
-
-```yaml
-apiGroup:
-  # 使用 suffix（推荐）
-  suffix: "service1"  # 将生成 httpteststub.service1.com
-  
-  # 或使用完整名称
-  fullName: "my-custom-api-group.io"  # 完全自定义
-  
-  # 如果都留空，默认使用 httpteststub.example.com
-```
-
-**部署示例**：
-
-```bash
-# 部署第一套实例（API Group: httpteststub.service1.com）
-helm install http-stub-service1 ./charts/k8s-http-fake-operator --set apiGroup.suffix=service1
-
-# 部署第二套实例（API Group: httpteststub.service2.com）
-helm install http-stub-service2 ./charts/k8s-http-fake-operator --set apiGroup.suffix=service2
-
-# 部署第三套实例（使用默认 API Group: httpteststub.example.com）
-helm install http-stub-default ./charts/k8s-http-fake-operator
-```
-
-**CR 创建示例**：
-
-```yaml
-# 第一套实例的 CR
-apiVersion: httpteststub.service1.com/v1
-kind: HTTPTestStub
-metadata:
-  name: stub1
-  namespace: default
-spec:
-  protocol: http
-  request:
-    method: GET
-    url:
-      type: exact
-      pattern: /api/service1
-  response:
-    type: static
-    static:
-      status: 200
-      body: {"service": "service1"}
-
----
-# 第二套实例的 CR
-apiVersion: httpteststub.service2.com/v1
-kind: HTTPTestStub
-metadata:
-  name: stub1
-  namespace: default
-spec:
-  protocol: http
-  request:
-    method: GET
-    url:
-      type: exact
-      pattern: /api/service2
-  response:
-    type: static
-    static:
-      status: 200
-      body: {"service": "service2"}
-```
-
-#### 必要参数验证
-
-**必须配置的参数**：
-
-| 参数 | 说明 | 示例值 |
-|------|------|--------|
-| `image.repository` | Docker 镜像仓库 | `k8s-http-fake-operator` |
-| `service.httpPort` | HTTP 服务端口 | `8080` |
-| `service.httpsPort` | HTTPS 服务端口 | `8443` |
-| `service.healthPort` | 健康检查端口 | `8081` |
-| `operator.server.httpPort` | Operator HTTP 端口 | `8080` |
-| `operator.server.httpsPort` | Operator HTTPS 端口 | `8443` |
-
-**条件性必须参数**：
-
-当 `tls.enabled` 为 `true` 时，以下参数也必须配置：
-
-| 参数 | 说明 | 示例值 |
-|------|------|--------|
-| `tls.certSecretName` | TLS 证书密钥名称 | `my-tls-secret` |
-
-**错误提示**：
-
-如果缺少必要参数，部署时会显示详细的错误信息，例如：
-
-```
-ERROR: image.repository is required. Please set the Docker image repository in values.yaml.
-```
-
-#### Helm 自定义配置示例
-
-**示例 1：默认配置（自动分配 IP）**
+**1. 默认配置（自动分配 IP）**
 
 ```yaml
 image:
@@ -535,7 +593,7 @@ operator:
     httpsPort: 8443
 ```
 
-**示例 2：自定义 Cluster IP**
+**2. 自定义 Cluster IP**
 
 ```yaml
 image:
@@ -555,18 +613,21 @@ operator:
     httpsPort: 443
 ```
 
-**示例 3：使用 IPv6**
+**3. 多部署配置**
 
 ```yaml
+# 部署命令：helm install http-stub-service1 ./charts/k8s-http-fake-operator --set apiGroup.suffix=service1
+apiGroup:
+  suffix: "service1"  # 生成 httpteststub.service1.com
+
 service:
   type: ClusterIP
-  clusterIP: "2001:db8::1"  # 自定义 IPv6
+  clusterIP: "10.96.0.100"
   httpPort: 8080
   httpsPort: 8443
-  healthPort: 8081
 ```
 
-**示例 4：启用 TLS**
+**4. 启用 TLS**
 
 ```yaml
 image:
@@ -589,31 +650,69 @@ operator:
     httpsPort: 8443
 ```
 
-**示例 5：多部署配置**
+**5. 启用脚本功能**
 
 ```yaml
-# 第一套部署
-apiGroup:
-  suffix: "service1"
-
-service:
-  type: ClusterIP
-  clusterIP: "10.96.0.100"
-  httpPort: 8080
-  httpsPort: 8443
-
-# 第二套部署
-apiGroup:
-  suffix: "service2"
-
-service:
-  type: ClusterIP
-  clusterIP: "10.96.0.101"
-  httpPort: 8080
-  httpsPort: 8443
+operator:
+  scripts:
+    enabled: true
+    directory: "/scripts"
+    hostPath: "/path/to/scripts/on/host"
+    readOnly: true
 ```
 
-部署：
+**6. 脚本响应规则**
+
+支持结合计数器规则使用脚本响应，实现更灵活的响应逻辑：
+
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: script-rule-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: pattern
+      pattern: /api/users/*/details
+  stubs:
+    - request:
+        method: GET
+        url:
+          type: pattern
+          pattern: /api/users/*/details
+      responseRules:
+        - rule:
+            type: range
+            start: 1
+            end: 3
+          script:
+            name: first-three-script
+            type: shell
+            path: first_three.sh
+            timeout: 10
+            args:
+              - "first"
+        - rule:
+            type: default
+          script:
+            name: default-script
+            type: shell
+            path: default.sh
+            timeout: 10
+            args:
+              - "default"
+      counter:
+        reset: true
+        resetAfter: 10
+```
+
+**7. 多部署配置**
+
+**部署命令**：
 ```bash
 helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator -f custom-values.yaml
 ```
@@ -692,110 +791,42 @@ make manifests
 
 ## 故障排查
 
-### 查看 Operator 日志
+### 基础排查命令
 
 ```bash
+# 查看 Operator 日志
 kubectl logs -l app.kubernetes.io/name=k8s-http-fake-operator -f
-```
 
-### 检查 CR 状态
-
-```bash
+# 检查 CR 状态
 kubectl get httpteststub -A
 kubectl describe httpteststub <name> -n <namespace>
+
+# 检查 Service 状态
+kubectl get svc -A | grep http-fake
+
+# 检查 Pod 状态
+kubectl get pods -A | grep http-fake
 ```
 
-### 常见问题
+### 常见问题排查
 
-1. **Stub 未生效**
-   - 检查 CR 状态是否为 `Running`
-   - 确认 URL 匹配规则是否正确
-   - 查看 Operator 日志是否有错误
-
-2. **请求返回 404**
-   - 确认请求方法和 URL 与 stub 配置匹配
-   - 检查是否有多个 stub 冲突
-
-3. **性能问题**
-   - 检查资源限制是否达到上限
-   - 查看 `/healthz` 端点的系统资源使用情况
-
-### Service IP 配置故障排除
-
-#### 1. 部署失败
-
-**症状**：`helm install` 命令失败，显示错误信息
-
-**原因**：
-- 缺少必要参数
-- Cluster IP 格式不正确
-- Cluster IP 已被占用
-
-**解决方案**：
-- 检查 values.yaml 中的必要参数
-- 确保 Cluster IP 格式正确且未被占用
-- 留空 clusterIP 字段，让 Kubernetes 自动分配
-
-#### 2. Service IP 未生效
-
-**症状**：部署成功，但 Service IP 不是配置的值
-
-**原因**：
-- 配置的 Cluster IP 不在集群 CIDR 范围内
-- 配置的 Cluster IP 已被其他 Service 使用
-
-**解决方案**：
-- 使用 `kubectl cluster-info dump | grep -E 'cluster-cidr|service-cluster-ip-range'` 查看集群 CIDR
-- 选择 CIDR 范围内的未使用 IP
-- 或留空 clusterIP 字段
-
-#### 3. 健康检查失败
-
-**症状**：Pod 状态为 `CrashLoopBackOff` 或 `Unready`
-
-**原因**：
-- 端口配置错误
-- 服务未正常启动
-
-**解决方案**：
-- 检查 `service.httpPort`、`service.httpsPort` 和 `service.healthPort` 配置
-- 确保这些端口与 `operator.server` 中的配置一致
-- 查看 Pod 日志：`kubectl logs <pod-name>`
-
-### 多部署配置故障排除
-
-#### 1. CRD 冲突
-
-**症状**：部署时提示 CRD 已存在
-
-**解决方案**：
-- 确保每个部署使用不同的 API Group
-- 检查现有的 CRD：`kubectl get crd | grep httpteststub`
-
-#### 2. Service IP 冲突
-
-**症状**：Service 创建失败
-
-**解决方案**：
-- 检查 IP 是否已被使用：`kubectl get svc --all-namespaces`
-- 使用自动分配 IP（留空 `clusterIP`）
-
-#### 3. CR 无法创建
-
-**症状**：创建 CR 时提示 API Group 不存在
-
-**解决方案**：
-- 确保部署已成功创建 CRD：`kubectl get crd`
-- 检查 CR 的 `apiVersion` 是否与部署的 API Group 匹配
-
-#### 4. 请求路由错误
-
-**症状**：请求发送到错误的部署实例
-
-**解决方案**：
-- 检查 Service 的 IP 和端口配置
-- 确认 CR 的 `apiVersion` 与目标部署的 API Group 匹配
-- 使用 `kubectl get svc` 查看所有 Service 的 IP 地址
+| 问题类型 | 症状 | 可能原因 | 解决方案 |
+|---------|------|---------|---------|
+| **Stub 配置** | Stub 未生效 | CR 状态不是 `Running` | 检查 CR 状态和 Operator 日志 |
+|  | 请求返回 404 | URL 匹配规则错误 | 确认请求方法和 URL 与配置匹配 |
+|  |  | 多个 stub 冲突 | 检查是否有重复的 URL 配置 |
+| **部署问题** | `helm install` 失败 | 缺少必要参数 | 检查 values.yaml 中的必填参数 |
+|  |  | Cluster IP 格式错误 | 使用有效的 IPv4/IPv6 地址 |
+|  |  | Cluster IP 被占用 | 选择未使用的 IP 或留空自动分配 |
+| **Service 问题** | Service IP 未生效 | IP 不在集群 CIDR 范围内 | 查看集群 CIDR 并选择范围内的 IP |
+|  |  | IP 已被其他 Service 使用 | 选择未使用的 IP 或留空自动分配 |
+| **Pod 问题** | `CrashLoopBackOff` 或 `Unready` | 端口配置错误 | 确保 `service` 和 `operator.server` 端口一致 |
+|  |  | 服务未正常启动 | 查看 Pod 日志：`kubectl logs <pod-name>` |
+| **多部署问题** | CRD 冲突 | 部署时提示 CRD 已存在 | 确保每个部署使用不同的 API Group |
+|  | CR 无法创建 | 提示 API Group 不存在 | 确认部署已创建 CRD 且 `apiVersion` 匹配 |
+|  | 请求路由错误 | 请求发送到错误实例 | 检查 Service IP 配置和 CR 的 `apiVersion` |
+| **性能问题** | 请求响应慢 | 资源限制达到上限 | 查看 `/healthz` 端点的系统资源使用情况 |
+|  |  | 并发请求过多 | 检查速率限制配置 |
 
 ## 架构对比
 

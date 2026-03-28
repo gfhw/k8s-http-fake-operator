@@ -102,3 +102,9 @@ operator:
     httpsPort: 8443
     tlsCertFile: "/etc/tls/tls.crt"
     tlsKeyFile: "/etc/tls/tls.key"
+  
+  scripts:
+    enabled: false
+    directory: "/scripts"
+    hostPath: ""  # Host path to mount scripts from
+    readOnly: true

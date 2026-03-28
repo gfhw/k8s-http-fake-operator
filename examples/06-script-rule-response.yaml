@@ -1,0 +1,42 @@
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: script-rule-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: pattern
+      pattern: /api/users/*/details
+  stubs:
+    - request:
+        method: GET
+        url:
+          type: pattern
+          pattern: /api/users/*/details
+      responseRules:
+        - rule:
+            type: range
+            start: 1
+            end: 3
+          script:
+            name: first-three-script
+            type: shell
+            path: first_three.sh
+            timeout: 10
+            args:
+              - "first"
+        - rule:
+            type: default
+          script:
+            name: default-script
+            type: shell
+            path: default.sh
+            timeout: 10
+            args:
+              - "default"
+      counter:
+        reset: true
+        resetAfter: 10

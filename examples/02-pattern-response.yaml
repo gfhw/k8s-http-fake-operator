@@ -1,0 +1,19 @@
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: pattern-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: pattern
+      pattern: /api/users/*
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"users": [{"id": 1, "name": "John Doe"}, {"id": 2, "name": "Jane Smith"}]}'

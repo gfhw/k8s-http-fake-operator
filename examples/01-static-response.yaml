@@ -1,0 +1,19 @@
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: static-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/health
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"status": "healthy", "message": "Service is running"}'

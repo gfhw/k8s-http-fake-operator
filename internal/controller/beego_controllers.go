@@ -92,10 +92,18 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 
 	for _, rule := range stub.ResponseRules {
 		if rule.Rule.Type == "range" && count >= rule.Rule.Start && count <= rule.Rule.End {
-			c.sendStaticResponse(&rule.Response)
+			if rule.Script != nil {
+				c.sendScriptResponse(rule.Script)
+			} else if rule.Response != nil {
+				c.sendStaticResponse(rule.Response)
+			}
 			return
 		} else if rule.Rule.Type == "default" {
-			c.sendStaticResponse(&rule.Response)
+			if rule.Script != nil {
+				c.sendScriptResponse(rule.Script)
+			} else if rule.Response != nil {
+				c.sendStaticResponse(rule.Response)
+			}
 			return
 		}
 	}
@@ -145,11 +153,34 @@ func (c *StubController) sendStaticResponse(static *httpteststubv1.Static) {
 }
 
 func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) {
-	c.Ctx.Output.SetStatus(http.StatusNotImplemented)
-	c.Ctx.Output.JSON(map[string]string{
-		"error":  "Script response not yet implemented",
-		"script": script.Name,
-	}, false, false)
+	executor := NewScriptExecutor()
+	requestContext := map[string]interface{}{
+		"method":  c.Ctx.Request.Method,
+		"path":    c.Ctx.Request.URL.Path,
+		"headers": c.Ctx.Request.Header,
+		"body":    "",
+	}
+
+	statusCode, _, body, err := executor.Execute(script, requestContext)
+	if err != nil {
+		c.Ctx.Output.SetStatus(statusCode)
+		c.Ctx.Output.JSON(map[string]interface{}{
+			"error": fmt.Sprintf("Script execution failed: %v", err),
+		}, false, false)
+		return
+	}
+
+	_, scriptHeaders, scriptStatus := ParseScriptOutput(body)
+	if scriptStatus != 200 {
+		statusCode = scriptStatus
+	}
+
+	for key, value := range scriptHeaders {
+		c.Ctx.Output.Header(key, value)
+	}
+
+	c.Ctx.Output.SetStatus(statusCode)
+	c.Ctx.Output.Body(body)
 }
 
 type HealthController struct {
