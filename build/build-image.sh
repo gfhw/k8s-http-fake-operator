@@ -164,18 +164,24 @@ main() {
     if $BUILD_CMD; then
         log_info "Docker image built successfully!"
         log_info "Image: $IMAGE_NAME:$IMAGE_TAG"
-        
+
         # Show image size
         IMAGE_SIZE=$(docker images $IMAGE_NAME:$IMAGE_TAG --format "{{.Size}}")
         log_info "Image size: $IMAGE_SIZE"
-        
+
         # List the image
         docker images $IMAGE_NAME:$IMAGE_TAG
-        
+
+        # Save image to build directory
+        log_info "Saving image to build directory..."
+        docker save $IMAGE_NAME:$IMAGE_TAG | gzip > "./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
+        log_info "Image saved to: ./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
+        ls -lh "./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
+
         log_info "You can now push the image to your registry:"
         log_info "  docker tag $IMAGE_NAME:$IMAGE_TAG <registry>/$IMAGE_NAME:$IMAGE_TAG"
         log_info "  docker push <registry>/$IMAGE_NAME:$IMAGE_TAG"
-        
+
     else
         log_error "Docker image build failed!"
         exit 1
