@@ -153,11 +153,7 @@ main() {
     # Build Docker image
     log_info "Building Docker image..."
 
-    BUILD_CMD="docker build --pull=false"
-
-    if [ "$NO_CACHE" = "true" ]; then
-        BUILD_CMD="$BUILD_CMD --no-cache"
-    fi
+    BUILD_CMD="docker build --pull=false --no-cache"
 
     BUILD_CMD="$BUILD_CMD -t $IMAGE_NAME:$IMAGE_TAG"
     BUILD_CMD="$BUILD_CMD -f $BUILD_CONTEXT/$DOCKERFILE"
