@@ -80,27 +80,38 @@ export IMAGE_TAG=v1.0.0
 
 ## After Building
 
-Once the image is built successfully, you can:
+Once the image is built successfully, the script will automatically save the image as a compressed tar file in the `build/` directory:
 
-1. **Test the image locally**:
+```
+k8s-http-fake-operator-latest.tar.gz
+```
+
+You can then:
+
+1. **Load the image from tar file**:
+   ```bash
+   docker load -i k8s-http-fake-operator-latest.tar.gz
+   ```
+
+2. **Test the image locally**:
    ```bash
    docker run -p 8080:8080 -p 8443:8443 k8s-http-fake-operator:latest
    ```
 
-2. **Push to a registry**:
+3. **Push to a registry**:
    ```bash
    docker tag k8s-http-fake-operator:latest <registry>/k8s-http-fake-operator:latest
    docker push <registry>/k8s-http-fake-operator:latest
    ```
 
-3. **Deploy with Helm**:
+4. **Deploy with Helm**:
    Update your `values.yaml` to use the new image:
    ```yaml
    image:
      repository: <registry>/k8s-http-fake-operator
      tag: latest
    ```
-   
+
    Then deploy:
    ```bash
    helm install k8s-http-fake-operator ../charts/k8s-http-fake-operator
