@@ -6,12 +6,12 @@ import (
 
 // HTTPTestStubSpec defines the desired state of HTTPTestStub
 type HTTPTestStubSpec struct {
-	Protocol string   `json:"protocol"`
-	Request  Request  `json:"request"`
-	Response Response `json:"response"`
-	Scripts  []Script `json:"scripts,omitempty"`
+	Protocol string    `json:"protocol"`
+	Request  Request   `json:"request"`
+	Response Response  `json:"response"`
+	Scripts  []Script  `json:"scripts,omitempty"`
 	TLS      TLSConfig `json:"tls,omitempty"`
-	Stubs    []Stub   `json:"stubs,omitempty"`
+	Stubs    []Stub    `json:"stubs,omitempty"`
 }
 
 // Request 请求匹配规则
@@ -22,7 +22,7 @@ type Request struct {
 
 // URL URL匹配规则
 type URL struct {
-	Type   string `json:"type"`
+	Type    string `json:"type"`
 	Pattern string `json:"pattern,omitempty"`
 	Regex   string `json:"regex,omitempty"`
 }
@@ -38,7 +38,7 @@ type Response struct {
 type Static struct {
 	Status  int               `json:"status"`
 	Headers map[string]string `json:"headers"`
-	Body    interface{}       `json:"body"`
+	Body    string            `json:"body"`
 }
 
 // Script 脚本配置
@@ -59,9 +59,9 @@ type TLSConfig struct {
 
 // Stub 单个stub配置
 type Stub struct {
-	Request       Request         `json:"request"`
-	ResponseRules []ResponseRule  `json:"responseRules"`
-	Counter       Counter         `json:"counter"`
+	Request       Request        `json:"request"`
+	ResponseRules []ResponseRule `json:"responseRules"`
+	Counter       Counter        `json:"counter"`
 }
 
 // ResponseRule 响应规则
@@ -79,14 +79,14 @@ type Rule struct {
 
 // Counter 计数器配置
 type Counter struct {
-	Reset       bool `json:"reset"`
-	ResetAfter  int  `json:"resetAfter"`
+	Reset      bool `json:"reset"`
+	ResetAfter int  `json:"resetAfter"`
 }
 
 // HTTPTestStubStatus defines the observed state of HTTPTestStub
 type HTTPTestStubStatus struct {
-	Status string `json:"status"`
-	RequestCount int `json:"requestCount"`
+	Status       string `json:"status"`
+	RequestCount int    `json:"requestCount"`
 }
 
 //+kubebuilder:object:root=true

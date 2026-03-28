@@ -1,3 +1,4 @@
+{{- include "k8s-http-fake-operator.validateClusterIP" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,29 +33,23 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "k8s-http-fake-operator.defaultImageRepository" . }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.httpPort }}
+              containerPort: {{ include "k8s-http-fake-operator.defaultHTTPPort" . }}
               protocol: TCP
             - name: https
-              containerPort: {{ .Values.service.httpsPort }}
+              containerPort: {{ include "k8s-http-fake-operator.defaultHTTPSPort" . }}
               protocol: TCP
             - name: health
-              containerPort: {{ .Values.service.healthPort }}
+              containerPort: {{ include "k8s-http-fake-operator.defaultHealthPort" . }}
               protocol: TCP
-          env:
-            - name: HTTP_PORT
-              value: "{{ .Values.service.httpPort }}"
-            - name: HTTPS_PORT
-              value: "{{ .Values.service.httpsPort }}"
-            - name: TLS_CERT_FILE
-              value: "{{ .Values.tls.certPath }}"
-            - name: TLS_KEY_FILE
-              value: "{{ .Values.tls.keyPath }}"
-          {{- if .Values.tls.enabled }}
           volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          {{- if .Values.tls.enabled }}
             - name: tls-certs
               mountPath: /etc/tls
               readOnly: true
@@ -73,13 +68,16 @@ spec:
             periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-      {{- if .Values.tls.enabled }}
       volumes:
+        - name: config
+          configMap:
+            name: {{ include "k8s-http-fake-operator.fullname" . }}-config
+        {{- if .Values.tls.enabled }}
         - name: tls-certs
           secret:
-            secretName: {{ .Values.tls.certSecretName }}
+            secretName: {{ include "k8s-http-fake-operator.defaultTLSCertSecretName" . }}
             optional: true
-      {{- end }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

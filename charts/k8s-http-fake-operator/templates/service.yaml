@@ -6,16 +6,19 @@ metadata:
     {{- include "k8s-http-fake-operator.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
+  {{- if .Values.service.clusterIP }}
+  clusterIP: {{ .Values.service.clusterIP }}
+  {{- end }}
   ports:
-    - port: {{ .Values.service.httpPort }}
+    - port: {{ include "k8s-http-fake-operator.defaultHTTPPort" . }}
       targetPort: http
       protocol: TCP
       name: http
-    - port: {{ .Values.service.httpsPort }}
+    - port: {{ include "k8s-http-fake-operator.defaultHTTPSPort" . }}
       targetPort: https
       protocol: TCP
       name: https
-    - port: {{ .Values.service.healthPort }}
+    - port: {{ include "k8s-http-fake-operator.defaultHealthPort" . }}
       targetPort: health
       protocol: TCP
       name: health

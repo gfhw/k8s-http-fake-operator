@@ -14,14 +14,22 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager ./cmd/main.go
 
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata bash
 
 WORKDIR /root/
 
 COPY --from=builder /workspace/manager .
 
-COPY --from=builder /workspace/config/crd/bases /config/crd/bases
+RUN chmod +x /manager
+
+RUN mkdir -p /config
+
+# Copy the entrypoint script
+COPY scripts/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8080 8443 8081
 
-ENTRYPOINT ["/manager"]
+# Run the entrypoint script which will keep the container running
+CMD ["/entrypoint.sh"]
