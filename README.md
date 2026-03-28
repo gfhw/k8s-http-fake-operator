@@ -1,123 +1,166 @@
-# webapp-operator
-// TODO(user): Add simple overview of use/purpose
+# k8s-http-fake-operator
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+Kubernetes Operator for creating HTTP test stub services.
 
-## Getting Started
+## 功能特性
 
-### Prerequisites
-- go version v1.24.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+- 创建和管理 HTTP 测试桩服务
+- 支持静态响应和脚本响应
+- 支持 URL 精确匹配、通配符匹配和正则表达式匹配
+- 支持 TLS 配置
+- 支持多响应规则和计数器
+- 自动生成服务地址和状态管理
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+## 快速开始
 
-```sh
-make docker-build docker-push IMG=<some-registry>/webapp-operator:tag
+### 安装 Operator
+
+```bash
+# 克隆仓库
+git clone https://github.com/gfhw/k8s-http-fake-operator.git
+cd k8s-http-fake-operator
+
+# 安装 CRD
+kubectl apply -f config/crd/bases/httpteststub.example.com_httpteststubs.yaml
+
+# 部署 Operator
+kubectl apply -f config/manager/manager.yaml
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+### 创建 HTTPTestStub 实例
 
-**Install the CRDs into the cluster:**
-
-```sh
-make install
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: example-stub
+  namespace: default
+spec:
+  baseInfo:
+    protocol: http
+    port: 8080
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/test
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body:
+        message: "Hello, World!"
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+### 访问服务
 
-```sh
-make deploy IMG=<some-registry>/webapp-operator:tag
+```bash
+# 获取服务地址
+kubectl get httpteststub example-stub -o jsonpath='{.status.address}'
+
+# 测试服务
+curl http://<service-address>/api/test
 ```
 
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
+## 配置参考
 
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+### HTTPTestStub 规范
 
-```sh
-kubectl apply -k config/samples/
+| 字段 | 描述 | 示例值 |
+|------|------|--------|
+| `baseInfo.protocol` | 服务协议 | `http` 或 `https` |
+| `baseInfo.port` | 服务端口 | `8080` |
+| `request.method` | HTTP 方法 | `GET`, `POST`, `PUT`, `DELETE` |
+| `request.url.type` | URL 匹配类型 | `exact` (精确), `pattern` (通配符), `regex` (正则) |
+| `response.type` | 响应类型 | `static` (静态), `script` (脚本) |
+| `response.static.status` | 静态响应状态码 | `200`, `404`, `500` |
+| `response.static.body` | 响应体 | 可以是 JSON、字符串等 |
+| `stubs` | 多个 stub 配置 | 用于定义复杂的请求-响应规则 |
+
+## 示例
+
+### 1. 基本的静态响应
+
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: static-response
+  namespace: default
+spec:
+  baseInfo:
+    protocol: http
+    port: 8080
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/health
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body:
+        status: "healthy"
 ```
 
->**NOTE**: Ensure that the samples has default values to test it out.
+### 2. 带正则表达式匹配
 
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: regex-match
+  namespace: default
+spec:
+  baseInfo:
+    protocol: http
+    port: 8080
+  request:
+    method: GET
+    url:
+      type: regex
+      regex: /api/users/[0-9]+
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body:
+        id: 123
+        name: "Test User"
 ```
 
-**Delete the APIs(CRDs) from the cluster:**
+## 开发
 
-```sh
-make uninstall
+### 构建 Operator
+
+```bash
+make build
 ```
 
-**UnDeploy the controller from the cluster:**
+### 运行测试
 
-```sh
-make undeploy
+```bash
+make test
 ```
 
-## Project Distribution
+### 本地运行
 
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/webapp-operator:tag
+```bash
+make run
 ```
 
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
+## 贡献
 
-2. Using the installer
+欢迎提交 Issue 和 Pull Request！
 
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/webapp-operator/<tag or branch>/dist/install.yaml
-```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-operator-sdk edit --plugins=helm/v1-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
+## 许可证
 
 Copyright 2026.
 
