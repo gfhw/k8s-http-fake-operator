@@ -50,6 +50,7 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// 获取 HTTPTestStub 资源
 	var httpTestStub httpteststubv1.HTTPTestStub
 	if err := r.Get(ctx, req.NamespacedName, &httpTestStub); err != nil {
+
 		log.Error(err, "unable to fetch HTTPTestStub")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
