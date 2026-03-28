@@ -2,9 +2,7 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates bash
 
-WORKDIR /root/
-
-# Copy the manager binary
+# Copy the manager binary directly to root
 COPY build/manager /manager
 
 RUN chmod +x /manager
