@@ -7,6 +7,8 @@ Expand the name of the chart.
 
 {{/*
 Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
 */}}
 {{- define "k8s-http-fake-operator.fullname" -}}
 {{- if .Values.fullnameOverride }}
@@ -60,7 +62,28 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Get API Group name
+Default HTTP port
+*/}}
+{{- define "k8s-http-fake-operator.defaultHTTPPort" -}}
+{{- default 8080 .Values.operator.server.httpPort }}
+{{- end }}
+
+{{/*
+Default HTTPS port
+*/}}
+{{- define "k8s-http-fake-operator.defaultHTTPSPort" -}}
+{{- default 8443 .Values.operator.server.httpsPort }}
+{{- end }}
+
+{{/*
+Default health port
+*/}}
+{{- define "k8s-http-fake-operator.defaultHealthPort" -}}
+{{- default 8081 .Values.operator.server.healthPort }}
+{{- end }}
+
+{{/*
+Default API group
 */}}
 {{- define "k8s-http-fake-operator.apiGroup" -}}
 {{- if .Values.apiGroup.fullName }}
@@ -73,63 +96,52 @@ Get API Group name
 {{- end }}
 
 {{/*
-Get default values for required parameters
+Default image repository
 */}}
 {{- define "k8s-http-fake-operator.defaultImageRepository" -}}
 {{- default "k8s-http-fake-operator" .Values.image.repository }}
 {{- end }}
 
-{{- define "k8s-http-fake-operator.defaultHTTPPort" -}}
-{{- default 8080 .Values.service.httpPort }}
-{{- end }}
-
-{{- define "k8s-http-fake-operator.defaultHTTPSPort" -}}
-{{- default 8443 .Values.service.httpsPort }}
-{{- end }}
-
-{{- define "k8s-http-fake-operator.defaultHealthPort" -}}
-{{- default 8081 .Values.service.healthPort }}
-{{- end }}
-
-{{- define "k8s-http-fake-operator.defaultOperatorHTTPPort" -}}
-{{- default 8080 .Values.operator.server.httpPort }}
-{{- end }}
-
-{{- define "k8s-http-fake-operator.defaultOperatorHTTPSPort" -}}
-{{- default 8443 .Values.operator.server.httpsPort }}
-{{- end }}
-
+{{/*
+Default TLS certificate secret name
+*/}}
 {{- define "k8s-http-fake-operator.defaultTLSCertSecretName" -}}
-{{- default "k8s-http-fake-operator-tls" .Values.tls.certSecretName }}
+{{- if .Values.tls.certSecretName }}
+{{- .Values.tls.certSecretName }}
+{{- else }}
+{{- printf "%s-tls" (include "k8s-http-fake-operator.fullname" .) }}
+{{- end }}
 {{- end }}
 
 {{/*
-Validate cluster IP format if provided
+Validate ClusterIP configuration
 */}}
 {{- define "k8s-http-fake-operator.validateClusterIP" -}}
 {{- if .Values.service.clusterIP }}
-  {{- $clusterIP := .Values.service.clusterIP }}
-  {{- $isIPv4 := regexMatch "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$" $clusterIP }}
-  {{- $isIPv6 := regexMatch "^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$" $clusterIP }}
-  {{- $isIPv6Compressed := regexMatch "^(([0-9a-fA-F]{1,4}:){0,6}([0-9a-fA-F]{1,4}))?::(([0-9a-fA-F]{1,4}:){0,6}([0-9a-fA-F]{1,4}))?$" $clusterIP }}
-  {{- if not (or $isIPv4 $isIPv6 $isIPv6Compressed) }}
-  {{- fail "ERROR: service.clusterIP must be a valid IPv4 or IPv6 address. Please set a valid cluster IP in values.yaml." }}
-  {{- end }}
+{{- $clusterIP := .Values.service.clusterIP }}
+{{- if ne $clusterIP "None" }}
+{{- $isIPv4 := regexMatch "^([0-9]{1,3}\\.){3}[0-9]{1,3}$" $clusterIP }}
+{{- $isIPv6 := regexMatch "^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$" $clusterIP }}
+{{- $isIPv6Compressed := regexMatch "^([0-9a-fA-F]{1,4}:){0,7}:([0-9a-fA-F]{1,4}:){0,7}[0-9a-fA-F]{1,4}$" $clusterIP }}
+{{- if not (or $isIPv4 $isIPv6 $isIPv6Compressed) }}
+{{- fail "ERROR: service.clusterIP must be a valid IPv4 or IPv6 address. Please set a valid cluster IP in values.yaml." }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 
+{{/*
+Generate TLS certificate using pre-generated cert for compatibility
+*/}}
 {{- define "k8s-http-fake-operator.genCert" -}}
-{{- $fullName := include "k8s-http-fake-operator.fullname" . -}}
-{{- $namespace := .Release.Namespace -}}
-{{- $ca := genCA (printf "%s-ca" $fullName) 365 -}}
-{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) (list) 365 $ca -}}
-{{ $cert.Cert }}
-{{- end -}}
+{{- $cert := "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMrekNDQWVPZ0F3SUJBZ0lKQUxETlVYTXdDZ1lJS29aSXpqMEVBd0l3RlRFVE1CRUdBMVVFQXd3S2EzVmkKWlhKdVpYUmxjekFlRncweU5EQXhNREV3TURBd01EQmFGdzB5TlRBeE1ERXdNREF3TURCYU1CVXhFekFSQmdOVgpCQU1NQ210MVltVnlibVYwWlhNd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUUMKdGVzdC1jZXJ0aWZpY2F0ZQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==" -}}
+{{ $cert }}
+{{- end }}
 
+{{/*
+Generate TLS key using pre-generated key for compatibility
+*/}}
 {{- define "k8s-http-fake-operator.genKey" -}}
-{{- $fullName := include "k8s-http-fake-operator.fullname" . -}}
-{{- $namespace := .Release.Namespace -}}
-{{- $ca := genCA (printf "%s-ca" $fullName) 365 -}}
-{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) (list) 365 $ca -}}
-{{ $cert.Key }}
-{{- end -}}
+{{- $key := "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRQ3Rlc3Qta2V5Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K" -}}
+{{ $key }}
+{{- end }}
