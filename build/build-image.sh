@@ -11,12 +11,14 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 DOCKERFILE="${DOCKERFILE:-build/Dockerfile}"
 BUILD_CONTEXT="${BUILD_CONTEXT:-..}"
 NO_CACHE="${NO_CACHE:-false}"
-SKIP_BUILD="${SKIP_BUILD:-false}"
+SKIP_BUILD="${SKIP_BUILD:-true}"
+IMPORT_TO_CONTAINERD="${IMPORT_TO_CONTAINERD:-true}"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Functions
@@ -32,20 +34,25 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+log_step() {
+    echo -e "${BLUE}[STEP]${NC} $1"
+}
+
 # Print usage
 usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-Build Docker image for k8s-http-fake-operator
+Build Docker image for k8s-http-fake-operator and optionally import to containerd
 
 OPTIONS:
     -n, --name IMAGE_NAME       Docker image name (default: k8s-http-fake-operator)
     -t, --tag IMAGE_TAG         Docker image tag (default: latest)
-    -f, --dockerfile DOCKERFILE Path to Dockerfile (default: Dockerfile)
-    -c, --context BUILD_CONTEXT Build context directory (default: .)
+    -f, --dockerfile DOCKERFILE Path to Dockerfile (default: build/Dockerfile)
+    -c, --context BUILD_CONTEXT Build context directory (default: ..)
     --no-cache                  Build without using cache
-    --skip-build                Skip binary build step (use existing binary)
+    --skip-build                Skip binary build step (default: true, uses existing manager binary)
+    --no-import                 Skip importing to containerd
     -h, --help                  Show this help message
 
 ENVIRONMENT VARIABLES:
@@ -55,9 +62,10 @@ ENVIRONMENT VARIABLES:
     BUILD_CONTEXT               Build context directory
     NO_CACHE                    Build without using cache (true/false)
     SKIP_BUILD                  Skip binary build step (true/false)
+    IMPORT_TO_CONTAINERD        Import image to containerd after build (true/false)
 
 EXAMPLES:
-    # Build with default settings
+    # Build with default settings (uses existing manager binary)
     $0
 
     # Build with custom name and tag
@@ -66,8 +74,8 @@ EXAMPLES:
     # Build without cache
     $0 --no-cache
 
-    # Build with custom Dockerfile
-    $0 --dockerfile Dockerfile.custom
+    # Build but don't import to containerd
+    $0 --no-import
 
 EOF
 }
@@ -99,6 +107,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_BUILD="true"
             shift
             ;;
+        --no-import)
+            IMPORT_TO_CONTAINERD="false"
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -111,6 +123,43 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Import image to containerd
+import_to_containerd() {
+    local tar_file="$1"
+    
+    log_step "Importing image to containerd..."
+    
+    # Check if ctr command exists
+    if ! command -v ctr &> /dev/null; then
+        log_warn "ctr command not found, skipping containerd import"
+        log_warn "Please ensure containerd is installed and ctr is in PATH"
+        return 0
+    fi
+    
+    # Check if running with sudo or as root
+    if [ "$EUID" -ne 0 ]; then
+        log_info "Using sudo for containerd import..."
+        SUDO="sudo"
+    else
+        SUDO=""
+    fi
+    
+    # Import image to containerd k8s.io namespace
+    log_info "Importing $tar_file to containerd (namespace: k8s.io)..."
+    if $SUDO ctr -n k8s.io images import "$tar_file"; then
+        log_info "Image imported to containerd successfully!"
+        
+        # Verify import
+        log_info "Verifying image in containerd..."
+        $SUDO ctr -n k8s.io images list | grep "$IMAGE_NAME" || true
+        
+        return 0
+    else
+        log_error "Failed to import image to containerd"
+        return 1
+    fi
+}
+
 # Main build process
 main() {
     log_info "Starting Docker image build process..."
@@ -119,6 +168,8 @@ main() {
     log_info "Dockerfile: $DOCKERFILE"
     log_info "Build context: $BUILD_CONTEXT"
     log_info "No cache: $NO_CACHE"
+    log_info "Skip build: $SKIP_BUILD"
+    log_info "Import to containerd: $IMPORT_TO_CONTAINERD"
 
     # Check if Docker is installed
     if ! command -v docker &> /dev/null; then
@@ -132,28 +183,23 @@ main() {
         exit 1
     fi
 
-    # Build binary (unless skipped)
-    if [ "$SKIP_BUILD" = "false" ]; then
-        log_info "Building binary..."
-        if ! go build -o "manager" "../cmd/main.go"; then
-            log_error "Binary build failed!"
-            exit 1
-        fi
-        log_info "Binary built successfully!"
-    else
-        log_info "Skipping binary build step..."
-        if [ ! -f "manager" ]; then
-            log_error "Binary not found: manager"
-            log_error "Please build the binary first or remove --skip-build flag"
-            exit 1
-        fi
-        log_info "Using existing binary: manager"
+    # Check for manager binary
+    if [ ! -f "manager" ]; then
+        log_error "Binary not found: manager"
+        log_error "Please ensure the manager binary exists in the build directory"
+        log_error "The binary should be cross-compiled for Linux amd64"
+        exit 1
     fi
+    log_info "Using existing binary: manager"
 
     # Build Docker image
-    log_info "Building Docker image..."
+    log_step "Building Docker image..."
 
-    BUILD_CMD="docker build --pull=false --no-cache"
+    BUILD_CMD="docker build --pull=false"
+    
+    if [ "$NO_CACHE" = "true" ]; then
+        BUILD_CMD="$BUILD_CMD --no-cache"
+    fi
 
     BUILD_CMD="$BUILD_CMD -t $IMAGE_NAME:$IMAGE_TAG"
     BUILD_CMD="$BUILD_CMD -f $BUILD_CONTEXT/$DOCKERFILE"
@@ -173,14 +219,27 @@ main() {
         docker images $IMAGE_NAME:$IMAGE_TAG
 
         # Save image to build directory
-        log_info "Saving image to build directory..."
-        docker save $IMAGE_NAME:$IMAGE_TAG | gzip > "./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
-        log_info "Image saved to: ./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
-        ls -lh "./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
+        log_step "Saving image to build directory..."
+        TAR_FILE="./$IMAGE_NAME-$IMAGE_TAG.tar.gz"
+        docker save $IMAGE_NAME:$IMAGE_TAG | gzip > "$TAR_FILE"
+        log_info "Image saved to: $TAR_FILE"
+        ls -lh "$TAR_FILE"
 
-        log_info "You can now push the image to your registry:"
-        log_info "  docker tag $IMAGE_NAME:$IMAGE_TAG <registry>/$IMAGE_NAME:$IMAGE_TAG"
-        log_info "  docker push <registry>/$IMAGE_NAME:$IMAGE_TAG"
+        # Import to containerd if enabled
+        if [ "$IMPORT_TO_CONTAINERD" = "true" ]; then
+            import_to_containerd "$TAR_FILE"
+        fi
+
+        log_step "Build complete!"
+        log_info "Summary:"
+        log_info "  - Docker image: $IMAGE_NAME:$IMAGE_TAG"
+        log_info "  - Saved to: $TAR_FILE"
+        if [ "$IMPORT_TO_CONTAINERD" = "true" ]; then
+            log_info "  - Imported to containerd: Yes"
+        fi
+        log_info ""
+        log_info "You can now deploy using Helm:"
+        log_info "  helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator"
 
     else
         log_error "Docker image build failed!"

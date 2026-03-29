@@ -2,23 +2,49 @@
 
 This directory contains scripts to build the k8s-http-fake-operator Docker image.
 
+## Prerequisites
+
+Before building, ensure you have:
+
+1. **Docker** installed and running
+2. **Go** installed (for building the binary)
+3. **ctr** command available (for importing to containerd/K3s)
+
+## Building the Binary
+
+The `manager` binary needs to be cross-compiled for Linux amd64 before building the Docker image.
+
+### On Windows (PowerShell):
+
+```powershell
+# Cross-compile for Linux amd64
+$env:GOOS="linux"
+$env:GOARCH="amd64"
+go build -o build/manager cmd/main.go
+```
+
+### On Linux/macOS:
+
+```bash
+# Cross-compile for Linux amd64
+GOOS=linux GOARCH=amd64 go build -o build/manager cmd/main.go
+```
+
+The binary should be placed in the `build/` directory as `manager`.
+
 ## Available Scripts
 
 ### Linux/macOS: `build-image.sh`
-Bash script for building Docker images on Linux and macOS systems.
 
-### Windows: `build-image.ps1`
-PowerShell script for building Docker images on Windows systems.
+Bash script for building Docker images and automatically importing to containerd.
 
-## Usage
-
-### Linux/macOS
+#### Usage
 
 ```bash
 # Make the script executable (first time only)
 chmod +x build-image.sh
 
-# Build with default settings
+# Build with default settings (uses existing manager binary)
 ./build-image.sh
 
 # Build with custom name and tag
@@ -27,14 +53,40 @@ chmod +x build-image.sh
 # Build without cache
 ./build-image.sh --no-cache
 
-# Build with custom Dockerfile
-./build-image.sh --dockerfile Dockerfile.custom
+# Build but don't import to containerd
+./build-image.sh --no-import
 
 # Show help
 ./build-image.sh --help
 ```
 
-### Windows PowerShell
+#### What the Script Does
+
+1. **Checks prerequisites**: Verifies Docker and the `manager` binary exist
+2. **Builds Docker image**: Creates the image with your binary
+3. **Saves image**: Exports the image to a compressed tar file
+4. **Imports to containerd**: Automatically imports the image to containerd (for K3s/K8s)
+
+#### Environment Variables
+
+- `IMAGE_NAME`: Docker image name (default: k8s-http-fake-operator)
+- `IMAGE_TAG`: Docker image tag (default: latest)
+- `DOCKERFILE`: Path to Dockerfile (default: build/Dockerfile)
+- `BUILD_CONTEXT`: Build context directory (default: ..)
+- `NO_CACHE`: Build without using cache (true/false)
+- `IMPORT_TO_CONTAINERD`: Import image to containerd after build (default: true)
+
+Example:
+
+```bash
+export IMAGE_NAME=my-operator
+export IMAGE_TAG=v1.0.0
+./build-image.sh
+```
+
+### Windows PowerShell: `build-image.ps1`
+
+PowerShell script for building Docker images on Windows.
 
 ```powershell
 # Build with default settings
@@ -46,101 +98,92 @@ chmod +x build-image.sh
 # Build without cache
 .\build-image.ps1 -NoCache
 
-# Build with custom Dockerfile
-.\build-image.ps1 -Dockerfile Dockerfile.custom
-
 # Show help
 .\build-image.ps1 -Help
 ```
 
-## Environment Variables
+## Complete Build Workflow
 
-You can also configure the build using environment variables:
+### For K3s/Kubernetes Deployment
 
-- `IMAGE_NAME`: Docker image name (default: k8s-http-fake-operator)
-- `IMAGE_TAG`: Docker image tag (default: latest)
-- `DOCKERFILE`: Path to Dockerfile (default: Dockerfile)
-- `BUILD_CONTEXT`: Build context directory (default: .)
-- `NO_CACHE`: Build without using cache (true/false)
+1. **Build the binary** (on Windows):
+   ```powershell
+   cd D:\files\operator\k8s-http-fake-operator
+   $env:GOOS="linux"; $env:GOARCH="amd64"; go build -o build/manager cmd/main.go
+   ```
 
-Example:
-
-```bash
-export IMAGE_NAME=my-operator
-export IMAGE_TAG=v1.0.0
-./build-image.sh
-```
-
-## Default Configuration
-
-- **Image Name**: `k8s-http-fake-operator`
-- **Image Tag**: `latest`
-- **Dockerfile**: `../Dockerfile`
-- **Build Context**: `..` (project root)
-
-## After Building
-
-Once the image is built successfully, the script will automatically save the image as a compressed tar file in the `build/` directory:
-
-```
-k8s-http-fake-operator-latest.tar.gz
-```
-
-You can then:
-
-1. **Load the image from tar file**:
+2. **Build and import the image** (on Linux with K3s):
    ```bash
-   docker load -i k8s-http-fake-operator-latest.tar.gz
+   cd /home/hwk/file/k8s-http-fake-operator/build
+   ./build-image.sh
    ```
 
-2. **Test the image locally**:
+3. **Deploy with Helm**:
    ```bash
-   docker run -p 8080:8080 -p 8443:8443 k8s-http-fake-operator:latest
+   cd /home/hwk/file/k8s-http-fake-operator
+   helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator
    ```
 
-3. **Push to a registry**:
-   ```bash
-   docker tag k8s-http-fake-operator:latest <registry>/k8s-http-fake-operator:latest
-   docker push <registry>/k8s-http-fake-operator:latest
-   ```
+## Output Files
 
-4. **Deploy with Helm**:
-   Update your `values.yaml` to use the new image:
-   ```yaml
-   image:
-     repository: <registry>/k8s-http-fake-operator
-     tag: latest
-   ```
+After building, the script generates:
 
-   Then deploy:
-   ```bash
-   helm install k8s-http-fake-operator ../charts/k8s-http-fake-operator
-   ```
+- **Docker image**: `k8s-http-fake-operator:latest` (in Docker)
+- **Compressed tar**: `k8s-http-fake-operator-latest.tar.gz` (in build/)
+- **containerd image**: Available in `k8s.io` namespace (if imported)
 
 ## Troubleshooting
 
-### Docker not found
-Make sure Docker is installed and running:
+### ImagePullBackOff Error
+
+If you see `ErrImagePull` or `ImagePullBackOff`, the image may not be in containerd:
+
 ```bash
-docker --version
-docker ps
+# Check if image exists in containerd
+sudo ctr -n k8s.io images list | grep k8s-http-fake-operator
+
+# If not found, manually import
+sudo ctr -n k8s.io images import k8s-http-fake-operator-latest.tar.gz
 ```
 
-### Permission denied (Linux/macOS)
-Make the script executable:
+### Permission Denied on Scripts
+
 ```bash
 chmod +x build-image.sh
 ```
 
-### Build fails
-Check that:
-- Dockerfile exists in the correct location
-- All required files are present
-- Docker daemon is running
-- You have sufficient disk space
+### Binary Not Found
 
-### PowerShell execution policy (Windows)
-If you get an execution policy error, run:
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Ensure you've built the `manager` binary for Linux amd64:
+
+```bash
+# Check if binary exists
+ls -la build/manager
+
+# File should show: ELF 64-bit LSB executable, x86-64
+file build/manager
 ```
+
+## After Building
+
+Once the image is built and imported successfully:
+
+1. **Verify the image**:
+   ```bash
+   # In Docker
+   docker images | grep k8s-http-fake-operator
+   
+   # In containerd
+   sudo ctr -n k8s.io images list | grep k8s-http-fake-operator
+   ```
+
+2. **Deploy to Kubernetes**:
+   ```bash
+   helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator
+   ```
+
+3. **Check deployment status**:
+   ```bash
+   kubectl get pods
+   kubectl logs -l app.kubernetes.io/name=k8s-http-fake-operator
+   ```
