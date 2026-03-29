@@ -7,7 +7,7 @@ echo "Starting k8s-http-fake-operator..."
 # Check if start.sh exists in /config directory
 if [ -f "/config/start.sh" ]; then
     echo "Using ConfigMap start.sh script..."
-    exec /config/start.sh
+    exec sh /config/start.sh
 else
     echo "ConfigMap start.sh not found, using default configuration..."
     
