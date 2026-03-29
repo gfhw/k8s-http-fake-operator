@@ -83,6 +83,27 @@ Default health port
 {{- end }}
 
 {{/*
+Default operator HTTP port (alias for configmap compatibility)
+*/}}
+{{- define "k8s-http-fake-operator.defaultOperatorHTTPPort" -}}
+{{- include "k8s-http-fake-operator.defaultHTTPPort" . }}
+{{- end }}
+
+{{/*
+Default operator HTTPS port (alias for configmap compatibility)
+*/}}
+{{- define "k8s-http-fake-operator.defaultOperatorHTTPSPort" -}}
+{{- include "k8s-http-fake-operator.defaultHTTPSPort" . }}
+{{- end }}
+
+{{/*
+Default operator health port (alias for configmap compatibility)
+*/}}
+{{- define "k8s-http-fake-operator.defaultOperatorHealthPort" -}}
+{{- include "k8s-http-fake-operator.defaultHealthPort" . }}
+{{- end }}
+
+{{/*
 Default API group
 */}}
 {{- define "k8s-http-fake-operator.apiGroup" -}}
