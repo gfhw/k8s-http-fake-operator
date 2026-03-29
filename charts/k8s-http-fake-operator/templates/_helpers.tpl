@@ -122,14 +122,14 @@ Validate cluster IP format if provided
 {{- $fullName := include "k8s-http-fake-operator.fullname" . -}}
 {{- $namespace := .Release.Namespace -}}
 {{- $ca := genCA (printf "%s-ca" $fullName) 365 -}}
-{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) nil 365 $ca -}}
-{{ $cert.Cert }},{{ $cert.Key }}
+{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) (list) 365 $ca -}}
+{{ $cert.Cert }}
 {{- end -}}
 
 {{- define "k8s-http-fake-operator.genKey" -}}
 {{- $fullName := include "k8s-http-fake-operator.fullname" . -}}
 {{- $namespace := .Release.Namespace -}}
 {{- $ca := genCA (printf "%s-ca" $fullName) 365 -}}
-{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) nil 365 $ca -}}
+{{- $cert := genSignedCert (printf "%s.%s.svc" $fullName $namespace) (list (printf "%s.%s.svc.cluster.local" $fullName $namespace)) (list) 365 $ca -}}
 {{ $cert.Key }}
 {{- end -}}
