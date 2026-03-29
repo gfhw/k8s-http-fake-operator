@@ -124,17 +124,6 @@ Default image repository
 {{- end }}
 
 {{/*
-Default TLS certificate secret name
-*/}}
-{{- define "k8s-http-fake-operator.defaultTLSCertSecretName" -}}
-{{- if .Values.tls.certSecretName }}
-{{- .Values.tls.certSecretName }}
-{{- else }}
-{{- printf "%s-tls" (include "k8s-http-fake-operator.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
 Validate ClusterIP configuration
 */}}
 {{- define "k8s-http-fake-operator.validateClusterIP" -}}
@@ -151,18 +140,4 @@ Validate ClusterIP configuration
 {{- end }}
 {{- end }}
 
-{{/*
-Generate TLS certificate using pre-generated cert for compatibility
-*/}}
-{{- define "k8s-http-fake-operator.genCert" -}}
-{{- $cert := "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMrekNDQWVPZ0F3SUJBZ0lKQUxETlVYTXdDZ1lJS29aSXpqMEVBd0l3RlRFVE1CRUdBMVVFQXd3S2EzVmkKWlhKdVpYUmxjekFlRncweU5EQXhNREV3TURBd01EQmFGdzB5TlRBeE1ERXdNREF3TURCYU1CVXhFekFSQmdOVgpCQU1NQ210MVltVnlibVYwWlhNd2dnRWlNQTBHQ1NxR1NJYjNEUUVCQVFVQUE0SUJEd0F3Z2dFS0FvSUJBUUMKdGVzdC1jZXJ0aWZpY2F0ZQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==" -}}
-{{ $cert }}
-{{- end }}
 
-{{/*
-Generate TLS key using pre-generated key for compatibility
-*/}}
-{{- define "k8s-http-fake-operator.genKey" -}}
-{{- $key := "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRQ3Rlc3Qta2V5Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K" -}}
-{{ $key }}
-{{- end }}

@@ -61,11 +61,6 @@ spec:
               mountPath: {{ .Values.operator.scripts.directory }}
               readOnly: {{ .Values.operator.scripts.readOnly }}
             {{- end }}
-          {{- if .Values.tls.enabled }}
-            - name: tls-certs
-              mountPath: /etc/tls
-              readOnly: true
-          {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -93,16 +88,6 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        {{- end }}
-        {{- if .Values.tls.enabled }}
-        - name: tls-certs
-          secret:
-            secretName: {{ include "k8s-http-fake-operator.defaultTLSCertSecretName" . }}
-            {{- if .Values.tls.autoGenerate }}
-            optional: false
-            {{- else }}
-            optional: true
-            {{- end }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
