@@ -178,17 +178,10 @@ func (in *Script) DeepCopyInto(out *Script) {
 	out.Type = in.Type
 	out.Path = in.Path
 	out.Timeout = in.Timeout
-	if in.Args != nil {
-		in, out := &in.Args, &out.Args
+	if in.Input != nil {
+		in, out := &in.Input, &out.Input
 		*out = make([]string, len(*in))
 		copy(*out, *in)
-	}
-	if in.Env != nil {
-		in, out := &in.Env, &out.Env
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
 	}
 	out.Content = in.Content
 }

@@ -56,8 +56,8 @@ func (e *ScriptExecutor) Execute(script *httpteststubv1.Script, requestContext m
 		cmd = exec.CommandContext(ctx, scriptPath)
 	}
 
-	if len(script.Args) > 0 {
-		cmd.Args = append([]string{scriptPath}, script.Args...)
+	if len(script.Input) > 0 {
+		cmd.Args = append([]string{scriptPath}, script.Input...)
 	}
 
 	env := e.buildEnvironment(script, requestContext)
@@ -108,10 +108,6 @@ func (e *ScriptExecutor) createTempScript(script *httpteststubv1.Script) string 
 
 func (e *ScriptExecutor) buildEnvironment(script *httpteststubv1.Script, requestContext map[string]interface{}) []string {
 	env := os.Environ()
-
-	for key, value := range script.Env {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
 
 	for key, value := range requestContext {
 		env = append(env, fmt.Sprintf("REQUEST_%s=%s", strings.ToUpper(key), fmt.Sprintf("%v", value)))

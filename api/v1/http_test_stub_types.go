@@ -47,8 +47,7 @@ type Script struct {
 	Type    string            `json:"type"`              // shell, python, etc.
 	Path    string            `json:"path"`              // 脚本文件路径
 	Timeout int               `json:"timeout"`           // 超时时间（秒）
-	Args    []string          `json:"args"`              // 脚本参数
-	Env     map[string]string `json:"env"`               // 环境变量
+	Input   []string          `json:"input"`             // 脚本输入
 	Content string            `json:"content,omitempty"` // 内联脚本内容
 }
 
