@@ -1,3 +1,5 @@
+# 示例2: 模式匹配响应
+# 使用通配符模式匹配 URL，返回用户列表
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
 metadata:

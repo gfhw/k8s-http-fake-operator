@@ -1,3 +1,5 @@
+# 示例3: 计数器响应规则
+# 根据请求次数返回不同的响应
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
 metadata:
@@ -25,14 +27,14 @@ spec:
             status: 200
             headers:
               Content-Type: application/json
-            body: '{"message": "First three requests", "count": 1}'
+            body: '{"message": "First three requests", "phase": "initial"}'
         - rule:
             type: default
           response:
             status: 200
             headers:
               Content-Type: application/json
-            body: '{"message": "Default response", "count": 4}'
+            body: '{"message": "Default response", "phase": "normal"}'
       counter:
         reset: true
         resetAfter: 5

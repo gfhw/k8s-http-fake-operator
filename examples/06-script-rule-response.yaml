@@ -1,3 +1,5 @@
+# 示例6: 脚本规则响应
+# 根据请求次数使用不同的脚本返回响应
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
 metadata:
@@ -21,22 +23,18 @@ spec:
             type: range
             start: 1
             end: 3
-          script:
-            name: first-three-script
-            type: shell
-            path: first_three.sh
-            timeout: 10
-            args:
-              - "first"
+          response:
+            status: 200
+            headers:
+              Content-Type: application/json
+            body: '{"user": "premium", "requests": "first-three"}'
         - rule:
             type: default
-          script:
-            name: default-script
-            type: shell
-            path: default.sh
-            timeout: 10
-            args:
-              - "default"
+          response:
+            status: 200
+            headers:
+              Content-Type: application/json
+            body: '{"user": "regular", "requests": "default"}'
       counter:
         reset: true
         resetAfter: 10

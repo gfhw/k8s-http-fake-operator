@@ -1,106 +1,115 @@
-# HTTPTestStub 示例配置
+# HTTP Test Stub 示例
 
-本目录包含 HTTPTestStub 的各种使用示例，展示了不同的功能和配置方式。
+本目录包含了一系列 HTTP Test Stub 的示例配置，展示了 operator 的各种功能。
 
-## 示例文件列表
+## 示例列表
 
-### 1. 静态响应 (01-static-response.yaml)
-最简单的示例，返回固定的静态响应。
+### 基础功能
 
-```bash
-kubectl apply -f 01-static-response.yaml
-```
+1. **01-static-response.yaml** - 静态响应
+   - 最简单的示例，返回固定的 JSON 响应
+   - 测试: `curl http://<service-ip>:8080/api/health`
 
-### 2. 通配符匹配 (02-pattern-response.yaml)
-演示如何使用通配符匹配 URL 模式。
+2. **02-pattern-response.yaml** - 模式匹配响应
+   - 使用通配符 `*` 匹配 URL 模式
+   - 测试: `curl http://<service-ip>:8080/api/users/123`
 
-```bash
-kubectl apply -f 02-pattern-response.yaml
-```
+3. **07-regex-response.yaml** - 正则表达式匹配
+   - 使用正则表达式匹配复杂的 URL 模式
+   - 测试: `curl http://<service-ip>:8080/api/v1/users/123`
 
-### 3. 计数器响应 (03-counter-response.yaml)
-演示如何根据请求次数返回不同的响应。
+### 计数器和规则
 
-```bash
-kubectl apply -f 03-counter-response.yaml
-```
+4. **03-counter-response.yaml** - 计数器响应规则
+   - 根据请求次数返回不同的响应
+   - 前3次请求返回初始响应，之后返回默认响应
+   - 测试: `curl -X POST http://<service-ip>:8080/api/counter` (执行多次)
 
-### 4. 脚本响应 (04-script-response.yaml)
-演示如何使用 Shell 脚本动态生成响应。
+5. **06-script-rule-response.yaml** - 响应规则（静态响应版）
+   - 根据请求次数返回不同的静态响应
+   - 测试: `curl http://<service-ip>:8080/api/users/123/details` (执行多次)
 
-```bash
-kubectl apply -f 04-script-response.yaml
-```
+### 脚本响应
 
-**注意**：使用脚本响应需要先部署脚本文件，参考 `scripts/` 目录。
+6. **04-script-response.yaml** - 脚本响应
+   - 使用外部脚本动态生成响应
+   - 需要提前准备好脚本文件
+   - 测试: `curl http://<service-ip>:8080/api/script`
 
-### 5. 延迟响应 (05-script-delay-response.yaml)
-演示如何实现延迟响应。
+7. **05-script-delay-response.yaml** - 延迟脚本响应
+   - 模拟延迟响应，用于测试超时处理
+   - 测试: `curl -X POST http://<service-ip>:8080/api/delay`
 
-```bash
-kubectl apply -f 05-script-delay-response.yaml
-```
+8. **08-inline-script.yaml** - 内联脚本响应
+   - 在 CRD 中直接定义脚本内容
+   - 不需要外部脚本文件
+   - 测试: `curl http://<service-ip>:8080/api/inline`
 
-### 6. 脚本响应规则 (06-script-rule-response.yaml)
-演示如何结合计数器规则和脚本响应，实现更灵活的响应逻辑。
+### 高级功能
 
-```bash
-kubectl apply -f 06-script-rule-response.yaml
-```
+9. **09-error-response.yaml** - 错误响应
+   - 模拟各种 HTTP 错误状态码
+   - 500, 404, 429 错误轮询
+   - 测试: `curl http://<service-ip>:8080/api/error` (执行多次)
 
-## 使用脚本功能
+10. **10-complex-json.yaml** - 复杂 JSON 响应
+    - 返回复杂的嵌套 JSON 数据结构
+    - 包含自定义响应头
+    - 测试: `curl -X POST http://<service-ip>:8080/api/complex`
 
-如果示例中使用了脚本响应，需要：
+## 快速开始
 
-1. 确保脚本文件存在于 `/scripts` 目录中
-2. 在部署 Operator 时启用脚本功能：
-
-```bash
-helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator \
-  --set operator.scripts.enabled=true \
-  --set operator.scripts.hostPath=/path/to/scripts/on/host
-```
-
-3. 将脚本文件复制到指定的宿主机目录：
+### 部署示例
 
 ```bash
-cp scripts/*.sh /path/to/scripts/on/host/
+# 部署单个示例
+kubectl apply -f examples/01-static-response.yaml
+
+# 部署所有示例
+kubectl apply -f examples/
 ```
 
-## 测试示例
-
-部署示例后，可以使用 curl 或其他 HTTP 客户端测试：
+### 获取服务地址
 
 ```bash
-# 测试静态响应
-curl http://<service-ip>:8080/api/health
+# 获取 ClusterIP
+kubectl get service k8s-http-fake-operator
 
-# 测试通配符匹配
-curl http://<service-ip>:8080/api/users/123
-
-# 测试计数器响应
-curl -X POST http://<service-ip>:8080/api/counter
-
-# 测试脚本响应
-curl http://<service-ip>:8080/api/script
-
-# 测试延迟响应
-curl -X POST http://<service-ip>:8080/api/delay
-
-# 测试脚本响应规则
-curl http://<service-ip>:8080/api/users/456/details
+# 在集群内测试
+curl http://<cluster-ip>:8080/api/health
 ```
 
-## 清理示例
-
-删除所有示例：
+### 从集群外测试
 
 ```bash
-kubectl delete -f examples/
+# 端口转发
+kubectl port-forward svc/k8s-http-fake-operator 8080:8080
+
+# 本地测试
+curl http://localhost:8080/api/health
 ```
 
-或删除单个示例：
+## 字段说明
 
-```bash
-kubectl delete -f 01-static-response.yaml
-```
+### URL 匹配类型
+
+- `exact` - 精确匹配
+- `pattern` - 通配符匹配，支持 `*` 匹配任意字符
+- `regex` - 正则表达式匹配
+
+### 响应类型
+
+- `static` - 静态响应，直接返回配置的 body
+- `script` - 脚本响应，执行脚本生成响应内容
+
+### 计数器规则
+
+- `range` - 在指定请求次数范围内生效
+- `default` - 默认规则，当其他规则不匹配时生效
+
+## 注意事项
+
+1. 脚本响应需要提前准备好脚本文件并挂载到容器中
+2. 内联脚本会在运行时写入临时文件并执行
+3. 计数器会在达到 `resetAfter` 后自动重置
+4. 所有示例都假设 operator 部署在 `default` 命名空间

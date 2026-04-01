@@ -1,0 +1,49 @@
+# 示例9: 错误响应
+# 模拟各种 HTTP 错误状态码
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: error-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/error
+  stubs:
+    - request:
+        method: GET
+        url:
+          type: exact
+          pattern: /api/error
+      responseRules:
+        - rule:
+            type: range
+            start: 1
+            end: 2
+          response:
+            status: 500
+            headers:
+              Content-Type: application/json
+            body: '{"error": "Internal Server Error", "code": 500}'
+        - rule:
+            type: range
+            start: 3
+            end: 4
+          response:
+            status: 404
+            headers:
+              Content-Type: application/json
+            body: '{"error": "Not Found", "code": 404}'
+        - rule:
+            type: default
+          response:
+            status: 429
+            headers:
+              Content-Type: application/json
+            body: '{"error": "Too Many Requests", "code": 429}'
+      counter:
+        reset: true
+        resetAfter: 5

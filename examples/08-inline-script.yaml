@@ -1,0 +1,26 @@
+# 示例8: 内联脚本响应
+# 使用内联脚本内容动态生成响应
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: inline-script-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/inline
+  response:
+    type: script
+    script:
+      name: inline-script
+      type: shell
+      path: /tmp/inline_script.sh
+      timeout: 10
+      input:
+        - "inline"
+      content: |
+        #!/bin/bash
+        echo '{"status": "success", "source": "inline script", "timestamp": "'$(date -Iseconds)'"}'

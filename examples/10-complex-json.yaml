@@ -1,0 +1,55 @@
+# 示例10: 复杂 JSON 响应
+# 返回复杂的嵌套 JSON 数据结构
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: complex-json-response
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/complex
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+        X-Custom-Header: complex-data
+      body: |
+        {
+          "data": {
+            "users": [
+              {
+                "id": 1,
+                "name": "John Doe",
+                "email": "john@example.com",
+                "roles": ["admin", "user"],
+                "profile": {
+                  "age": 30,
+                  "city": "New York"
+                }
+              },
+              {
+                "id": 2,
+                "name": "Jane Smith",
+                "email": "jane@example.com",
+                "roles": ["user"],
+                "profile": {
+                  "age": 25,
+                  "city": "San Francisco"
+                }
+              }
+            ],
+            "metadata": {
+              "total": 2,
+              "page": 1,
+              "pageSize": 10
+            }
+          },
+          "status": "success",
+          "timestamp": "2024-01-01T00:00:00Z"
+        }

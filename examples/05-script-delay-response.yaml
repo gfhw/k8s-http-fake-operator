@@ -1,3 +1,5 @@
+# 示例5: 延迟脚本响应
+# 模拟延迟响应，用于测试超时处理
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
 metadata:
@@ -15,7 +17,7 @@ spec:
     script:
       name: delay-script
       type: shell
-      path: delay.sh
+      path: /scripts/delay.sh
       timeout: 15
-      args:
+      input:
         - "5"

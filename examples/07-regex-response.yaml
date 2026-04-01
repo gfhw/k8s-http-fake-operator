@@ -1,21 +1,21 @@
-# 示例1: 静态响应
-# 创建一个简单的 HTTP 端点，返回固定的 JSON 响应
+# 示例7: 正则表达式匹配
+# 使用正则表达式匹配 URL
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
 metadata:
-  name: static-response
+  name: regex-response
   namespace: default
 spec:
   protocol: http
   request:
     method: GET
     url:
-      type: exact
-      pattern: /api/health
+      type: regex
+      regex: "^/api/v[0-9]+/users/[0-9]+$"
   response:
     type: static
     static:
       status: 200
       headers:
         Content-Type: application/json
-      body: '{"status": "healthy", "message": "Service is running"}'
+      body: '{"message": "Regex matched", "pattern": "versioned API"}'
