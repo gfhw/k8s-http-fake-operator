@@ -43,12 +43,12 @@ type Static struct {
 
 // Script 脚本配置
 type Script struct {
-	Name    string            `json:"name"`
-	Type    string            `json:"type"`              // shell, python, etc.
-	Path    string            `json:"path"`              // 脚本文件路径
-	Timeout int               `json:"timeout"`           // 超时时间（秒）
-	Input   []string          `json:"input"`             // 脚本输入
-	Content string            `json:"content,omitempty"` // 内联脚本内容
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`              // shell, python, etc.
+	Path    string   `json:"path"`              // 脚本文件路径
+	Timeout int      `json:"timeout"`           // 超时时间（秒）
+	Input   []string `json:"input"`             // 脚本输入
+	Content string   `json:"content,omitempty"` // 内联脚本内容
 }
 
 // TLSConfig TLS配置
@@ -68,7 +68,6 @@ type Stub struct {
 type ResponseRule struct {
 	Rule     Rule    `json:"rule"`
 	Response *Static `json:"response,omitempty"`
-	Script   *Script `json:"script,omitempty"`
 }
 
 // Rule 规则条件

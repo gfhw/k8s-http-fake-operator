@@ -237,10 +237,6 @@ func (in *ResponseRule) DeepCopyInto(out *ResponseRule) {
 		out.Response = new(Static)
 		in.Response.DeepCopyInto(out.Response)
 	}
-	if in.Script != nil {
-		out.Script = new(Script)
-		in.Script.DeepCopyInto(out.Script)
-	}
 }
 
 func (in *Rule) DeepCopy() *Rule {

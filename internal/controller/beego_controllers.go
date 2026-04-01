@@ -92,16 +92,12 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 
 	for _, rule := range stub.ResponseRules {
 		if rule.Rule.Type == "range" && count >= rule.Rule.Start && count <= rule.Rule.End {
-			if rule.Script != nil {
-				c.sendScriptResponse(rule.Script)
-			} else if rule.Response != nil {
+			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
 			return
 		} else if rule.Rule.Type == "default" {
-			if rule.Script != nil {
-				c.sendScriptResponse(rule.Script)
-			} else if rule.Response != nil {
+			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
 			return
