@@ -8,7 +8,7 @@ import (
 var (
 	SchemeGroupVersion = schema.GroupVersion{
 		Group:   "httpteststub.example.com",
-		Version: "v1",
+		Version: "v1beta1",
 	}
 
 	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
