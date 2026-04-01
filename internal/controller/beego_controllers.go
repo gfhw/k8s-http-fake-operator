@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -135,17 +134,7 @@ func (c *StubController) sendStaticResponse(static *httpteststubv1.Static) {
 	}
 
 	c.Ctx.Output.SetStatus(static.Status)
-
-	bodyBytes, err := json.Marshal(static.Body)
-	if err != nil {
-		c.Ctx.Output.SetStatus(http.StatusInternalServerError)
-		c.Ctx.Output.JSON(map[string]string{
-			"error": "Failed to serialize response body",
-		}, false, false)
-		return
-	}
-
-	c.Ctx.Output.Body(bodyBytes)
+	c.Ctx.Output.Body([]byte(static.Body))
 }
 
 func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) {
