@@ -7,6 +7,18 @@ metadata:
   namespace: default
 spec:
   protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/counter
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "Default response"}'
   stubs:
     - request:
         method: POST
