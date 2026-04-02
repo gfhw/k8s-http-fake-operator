@@ -7,11 +7,6 @@ metadata:
   namespace: default
 spec:
   protocol: http
-  request:
-    method: POST
-    url:
-      type: exact
-      pattern: /api/counter
   stubs:
     - request:
         method: POST
