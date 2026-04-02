@@ -249,52 +249,36 @@ service:
 ```yaml
 tls:
   enabled: true
-  autoGenerate: true  # 自动生成自签名证书
+  autoGenerate: true  # 默认使用自签名证书
 ```
 
 **3. 使用自定义证书**：
 
-```yaml
-# 首先创建 TLS Secret
-kubectl create secret tls my-custom-cert \
-  --cert=path/to/cert.crt \
-  --key=path/to/key.key
+```bash
+# 创建 TLS Secret
+kubectl create secret tls my-cert --cert=cert.crt --key=cert.key
 
-# 然后部署时指定
-tls:
-  enabled: true
-  autoGenerate: false  # 使用用户提供的证书
-  certSecretName: my-custom-cert
+# 部署时指定
+helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator \
+  --set tls.autoGenerate=false \
+  --set tls.certSecretName=my-cert
 ```
 
 ## 协议分离
 
-k8s-http-fake-operator 同时监听 HTTP 和 HTTPS 端口：
+同时监听 HTTP (8080) 和 HTTPS (8443) 端口。通过 CR 的 `spec.protocol` 控制：
 
-| 端口 | 协议 | 默认用途 |
-|------|------|---------|
-| 8080 | HTTP | 测试/开发环境 |
-| 8443 | HTTPS | 生产环境 |
+| protocol | 说明 | HTTP:8080 | HTTPS:8443 |
+|----------|------|-----------|------------|
+| `http` | 仅 HTTP | ✅ | ❌ 404 |
+| `https` | 仅 HTTPS | ❌ 404 | ✅ |
+| `both` 或空 | 两者 | ✅ | ✅ |
 
-### CR 中的 protocol 字段
-
-通过 CR 的 `spec.protocol` 字段控制请求走哪个端口：
-
-| protocol 值 | 说明 | HTTP:8080 | HTTPS:8443 |
-|-------------|------|-----------|------------|
-| `http` | 仅 HTTP | ✅ 正常响应 | ❌ 404 |
-| `https` | 仅 HTTPS | ❌ 404 | ✅ 正常响应 |
-| `both` 或空 | 两者都支持 | ✅ 正常响应 | ✅ 正常响应 |
-
-**示例：仅 HTTPS**：
+**示例（HTTPS only）**：
 
 ```yaml
-apiVersion: httpteststub.example.com/v1
-kind: HTTPTestStub
-metadata:
-  name: https-only-stub
 spec:
-  protocol: https  # 只响应 HTTPS 请求
+  protocol: https
   request:
     method: GET
     url:
@@ -307,39 +291,15 @@ spec:
       headers:
         Content-Type: application/json
       body:
-        message: "This is a secure endpoint"
+        message: "Secure endpoint"
 ```
 
-**测试命令**：
+**测试**：
 
 ```bash
-# HTTPS 请求（使用 -k 跳过证书验证，因为是自签名）
-curl -k https://<service>:8443/api/secure
-
-# HTTP 请求（会返回 404）
-curl http://<service>:8080/api/secure
+curl -k https://<service>:8443/api/secure   # HTTPS 正常响应
+curl http://<service>:8080/api/secure       # HTTP 返回 404
 ```
-
-### 真实证书配置
-
-如果需要使用真实证书（非自签名），需要：
-
-1. **准备证书文件**（cert.crt 和 cert.key）
-2. **创建 Kubernetes Secret**：
-   ```bash
-   kubectl create secret tls my-prod-cert \
-     --cert=cert.crt \
-     --key=cert.key
-   ```
-3. **部署时配置**：
-   ```bash
-   helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator \
-     --set tls.enabled=true \
-     --set tls.autoGenerate=false \
-     --set tls.certSecretName=my-prod-cert
-   ```
-
-这样部署后，HTTPS 请求会使用用户提供的真实证书，浏览器不会报警告。
 
 **3. 启用脚本功能**：
 
