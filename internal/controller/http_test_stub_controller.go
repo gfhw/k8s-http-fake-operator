@@ -82,11 +82,19 @@ func (r *HTTPTestStubReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func GetMatchingStub(method, path string) *httpteststubv1.HTTPTestStub {
+func GetMatchingStub(method, path, protocol string) *httpteststubv1.HTTPTestStub {
 	var matchedStub *httpteststubv1.HTTPTestStub
 
 	stubCache.Range(func(key, value interface{}) bool {
 		stub := value.(*httpteststubv1.HTTPTestStub)
+
+		// 检查 protocol 是否匹配
+		// 如果 CR 的 protocol 为空或 "both"，则匹配所有协议
+		// 否则必须完全匹配
+		stubProtocol := stub.Spec.Protocol
+		if stubProtocol != "" && stubProtocol != "both" && stubProtocol != protocol {
+			return true // 跳过不匹配的 protocol
+		}
 
 		for _, s := range stub.Spec.Stubs {
 			if matchRequest(method, path, &s.Request) {

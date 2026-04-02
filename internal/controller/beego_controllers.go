@@ -34,16 +34,28 @@ func (c *StubController) Patch() {
 	c.handleRequest("PATCH")
 }
 
+// GetProtocol 获取当前请求的协议类型
+func (c *StubController) GetProtocol() string {
+	// 从请求中获取协议类型
+	scheme := c.Ctx.Input.Scheme()
+	if scheme == "https" {
+		return "https"
+	}
+	return "http"
+}
+
 func (c *StubController) handleRequest(method string) {
 	path := c.Ctx.Input.URL()
+	protocol := c.GetProtocol()
 
-	stub := GetMatchingStub(method, path)
+	stub := GetMatchingStub(method, path, protocol)
 	if stub == nil {
 		c.Ctx.Output.SetStatus(http.StatusNotFound)
 		c.Ctx.Output.JSON(map[string]string{
-			"error":  "No matching stub found",
-			"method": method,
-			"path":   path,
+			"error":    "No matching stub found",
+			"method":   method,
+			"path":     path,
+			"protocol": protocol,
 		}, false, false)
 		return
 	}

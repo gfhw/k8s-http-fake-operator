@@ -68,10 +68,16 @@ tolerations: []
 
 affinity: {}
 
+# TLS configuration for HTTPS support
 tls:
   enabled: true
+  # If autoGenerate is true, Helm will generate a self-signed certificate
+  # If false, you must provide your own certificate in the specified secret
   autoGenerate: true
+  # Name of the Kubernetes Secret containing the TLS certificate
+  # The secret should have tls.crt and tls.key data fields
   certSecretName: "k8s-http-fake-operator-tls"
+  # Path to certificate files inside the container
   certPath: "/etc/tls/tls.crt"
   keyPath: "/etc/tls/tls.key"
 

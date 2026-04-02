@@ -56,6 +56,11 @@ spec:
             - name: config
               mountPath: /config
               readOnly: true
+            {{- if .Values.tls.enabled }}
+            - name: tls
+              mountPath: /etc/tls
+              readOnly: true
+            {{- end }}
             {{- if .Values.operator.scripts.enabled }}
             - name: scripts
               mountPath: {{ .Values.operator.scripts.directory }}
@@ -79,6 +84,12 @@ spec:
         - name: config
           configMap:
             name: {{ include "k8s-http-fake-operator.fullname" . }}-config
+        {{- if .Values.tls.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.certSecretName }}
+            defaultMode: 420
+        {{- end }}
         {{- if .Values.operator.scripts.enabled }}
         - name: scripts
           {{- if .Values.operator.scripts.hostPath }}

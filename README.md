@@ -227,7 +227,9 @@ echo '{"body": {"message": "Hello from script!", "timestamp": '$(date +%s)'}, "h
 | **镜像** | `image.repository` | 镜像仓库 | `k8s-http-fake-operator` |
 |  | `image.tag` | 镜像标签 | `latest` |
 | **TLS** | `tls.enabled` | 启用 TLS | `true` |
+|  | `tls.autoGenerate` | 自动生成自签名证书 | `true` |
 |  | `tls.certSecretName` | TLS 证书 Secret | `my-tls-secret` |
+|  | `tls.certPath` | 容器内证书路径 | `/etc/tls/tls.crt` |
 | **脚本** | `operator.scripts.enabled` | 启用脚本功能 | `true` |
 |  | `operator.scripts.hostPath` | 宿主机脚本目录 | `/path/to/scripts` |
 
@@ -242,17 +244,102 @@ service:
   httpPort: 8080
 ```
 
-**2. 启用 TLS**：
+**2. 启用 TLS（使用自签名证书）**：
 
 ```yaml
 tls:
   enabled: true
-  certSecretName: my-tls-secret
-
-service:
-  httpPort: 80
-  httpsPort: 443
+  autoGenerate: true  # 自动生成自签名证书
 ```
+
+**3. 使用自定义证书**：
+
+```yaml
+# 首先创建 TLS Secret
+kubectl create secret tls my-custom-cert \
+  --cert=path/to/cert.crt \
+  --key=path/to/key.key
+
+# 然后部署时指定
+tls:
+  enabled: true
+  autoGenerate: false  # 使用用户提供的证书
+  certSecretName: my-custom-cert
+```
+
+## 协议分离
+
+k8s-http-fake-operator 同时监听 HTTP 和 HTTPS 端口：
+
+| 端口 | 协议 | 默认用途 |
+|------|------|---------|
+| 8080 | HTTP | 测试/开发环境 |
+| 8443 | HTTPS | 生产环境 |
+
+### CR 中的 protocol 字段
+
+通过 CR 的 `spec.protocol` 字段控制请求走哪个端口：
+
+| protocol 值 | 说明 | HTTP:8080 | HTTPS:8443 |
+|-------------|------|-----------|------------|
+| `http` | 仅 HTTP | ✅ 正常响应 | ❌ 404 |
+| `https` | 仅 HTTPS | ❌ 404 | ✅ 正常响应 |
+| `both` 或空 | 两者都支持 | ✅ 正常响应 | ✅ 正常响应 |
+
+**示例：仅 HTTPS**：
+
+```yaml
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: https-only-stub
+spec:
+  protocol: https  # 只响应 HTTPS 请求
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/secure
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body:
+        message: "This is a secure endpoint"
+```
+
+**测试命令**：
+
+```bash
+# HTTPS 请求（使用 -k 跳过证书验证，因为是自签名）
+curl -k https://<service>:8443/api/secure
+
+# HTTP 请求（会返回 404）
+curl http://<service>:8080/api/secure
+```
+
+### 真实证书配置
+
+如果需要使用真实证书（非自签名），需要：
+
+1. **准备证书文件**（cert.crt 和 cert.key）
+2. **创建 Kubernetes Secret**：
+   ```bash
+   kubectl create secret tls my-prod-cert \
+     --cert=cert.crt \
+     --key=cert.key
+   ```
+3. **部署时配置**：
+   ```bash
+   helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator \
+     --set tls.enabled=true \
+     --set tls.autoGenerate=false \
+     --set tls.certSecretName=my-prod-cert
+   ```
+
+这样部署后，HTTPS 请求会使用用户提供的真实证书，浏览器不会报警告。
 
 **3. 启用脚本功能**：
 
@@ -411,14 +498,43 @@ kubectl get pods -A | grep http-fake
 
 ## 与其他方案对比
 
-| 特性 | k8s-http-fake-operator | WireMock | 传统 Mock |
-|------|------------------------|----------|-----------|
-| 部署方式 | Kubernetes Native | 独立服务 | 独立服务 |
-| 配置管理 | CRD + GitOps | API/文件 | 文件/数据库 |
-| 动态更新 | 热更新 | 需要重启 | 需要重启 |
-| Kubernetes 集成 | 原生支持 | 需额外部署 | 需额外部署 |
-| 脚本支持 | 支持 | 支持 | 不支持 |
-| 学习曲线 | 低（YAML） | 中 | 中 |
+| 特性 | k8s-http-fake-operator | WireMock | MockServer | Hoverfly | Mountebank | Postman Mock |
+|------|------------------------|----------|------------|----------|------------|--------------|
+| **部署方式** | Kubernetes Operator | JVM 应用 | Node.js/Java | Go 二进制 | Node.js | SaaS/本地 |
+| **配置方式** | CRD + YAML | JSON/API | JSON/API | JSON/API | JSON/API | GUI/API |
+| **动态更新** | ✅ 热更新 | ❌ 需要重启 | ❌ 需要重启 | ✅ API 更新 | ❌ 需要重启 | ❌ 需要重启 |
+| **Kubernetes 集成** | ✅ 原生 | ❌ 需额外部署 | ❌ 需额外部署 | ❌ 需额外部署 | ❌ 需额外部署 | ❌ 不支持 |
+| **GitOps 支持** | ✅ 原生 | ⚠️ 有限 | ⚠️ 有限 | ⚠️ 有限 | ⚠️ 有限 | ❌ |
+| **脚本支持** | ✅ Shell/Python | ⚠️ Java | ⚠️ JavaScript | ✅ JavaScript | ✅ JavaScript | ❌ |
+| **计数器规则** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **正则匹配** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **HTTPS 支持** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **学习曲线** | 低（YAML） | 中 | 中 | 中 | 中 | 低 |
+| **资源占用** | 低 | 高 | 中 | 低 | 中 | - |
+| **多租户隔离** | ✅ 命名空间 | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **CRD 管理** | ✅ 原生 | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+### 核心优势
+
+1. **云原生设计**
+   - 专为 Kubernetes 设计，充分利用 CRD 生态
+   - 与 Kubernetes RBAC、Policy、网络策略无缝集成
+   - 支持多命名空间隔离，实现多租户
+
+2. **GitOps 原生**
+   - 配置即代码，版本化管理
+   - CR 变更自动同步，无需重启
+   - 可使用 ArgoCD、Flux 等 GitOps 工具管理
+
+3. **计数器规则**
+   - 业界独有功能！可按请求次数返回不同响应
+   - 适用于模拟限流、降级、灰度发布等场景
+   - 支持自动重置
+
+4. **轻量高效**
+   - 基于 Beego 框架，性能高
+   - 资源占用低，适合边缘计算场景
+   - 单二进制部署，无外部依赖
 
 ## 许可证
 
