@@ -1,0 +1,25 @@
+# 示例13: 请求体精确匹配
+# 根据请求体内容精确匹配返回不同响应
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: body-match-equal
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/login
+    body:
+      type: json
+      matcher: equalTo
+      value: '{"username": "admin", "password": "123456"}'
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "user": "admin"}'

@@ -1,0 +1,23 @@
+# 示例20: HEAD 方法响应
+# 处理 HEAD 请求，通常用于检查资源是否存在
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: head-method
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: HEAD
+    url:
+      type: exact
+      pattern: /api/resource
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+        Content-Length: "1024"
+        Last-Modified: "Wed, 21 Oct 2026 07:28:00 GMT"
+      body: ""  # HEAD 请求通常不返回响应体

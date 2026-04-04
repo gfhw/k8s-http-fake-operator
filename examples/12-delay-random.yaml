@@ -1,0 +1,25 @@
+# 示例12: 随机延迟响应
+# 模拟随机延迟，用于测试超时场景
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: delay-random
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/delay/random
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "This response has a random delay between 100ms and 1000ms"}'
+      delay:
+        random:
+          min: 100   # 最小延迟 100 毫秒
+          max: 1000  # 最大延迟 1000 毫秒

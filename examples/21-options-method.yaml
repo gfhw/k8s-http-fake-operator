@@ -1,0 +1,24 @@
+# 示例21: OPTIONS 方法响应
+# 处理 OPTIONS 请求，通常用于 CORS 预检
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: options-method
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: OPTIONS
+    url:
+      type: exact
+      pattern: /api/resource
+  response:
+    type: static
+    static:
+      status: 204
+      headers:
+        Access-Control-Allow-Origin: "*"
+        Access-Control-Allow-Methods: "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers: "Content-Type, Authorization"
+        Access-Control-Max-Age: "86400"
+      body: ""

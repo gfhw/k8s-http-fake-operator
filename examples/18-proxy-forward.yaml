@@ -1,0 +1,18 @@
+# 示例18: 代理转发
+# 将请求转发到真实服务并返回响应
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: proxy-forward
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/external
+  response:
+    type: proxy
+    proxy:
+      target: http://real-service:8080

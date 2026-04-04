@@ -1,0 +1,25 @@
+# 示例15: 请求体正则匹配
+# 使用正则表达式匹配请求体内容
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: body-match-regex
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/validate
+    body:
+      type: text
+      matcher: matches
+      value: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"  # 邮箱格式正则
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"valid": true, "message": "Email format is valid"}'

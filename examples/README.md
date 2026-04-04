@@ -1,115 +1,99 @@
 # HTTP Test Stub 示例
 
-本目录包含了一系列 HTTP Test Stub 的示例配置，展示了 operator 的各种功能。
+本目录包含各种 HTTP Test Stub 配置示例，涵盖了所有支持的打桩功能。
 
 ## 示例列表
 
-### 基础功能
+### 基础响应类型
 
-1. **01-static-response.yaml** - 静态响应
-   - 最简单的示例，返回固定的 JSON 响应
-   - 测试: `curl http://<service-ip>:8080/api/health`
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [01-static-response.yaml](01-static-response.yaml) | 静态响应 | 返回固定的 JSON 响应 |
+| [02-pattern-response.yaml](02-pattern-response.yaml) | 通配符匹配 | 使用 `*` 匹配 URL 中的任意字符串 |
+| [03-counter-response.yaml](03-counter-response.yaml) | 计数器响应 | 按请求次数返回不同响应 |
+| [04-script-response.yaml](04-script-response.yaml) | 脚本响应 | 通过 Shell 脚本动态生成响应 |
 
-2. **02-pattern-response.yaml** - 模式匹配响应
-   - 使用通配符 `*` 匹配 URL 模式
-   - 测试: `curl http://<service-ip>:8080/api/users/123`
+### 高级匹配功能
 
-3. **07-regex-response.yaml** - 正则表达式匹配
-   - 使用正则表达式匹配复杂的 URL 模式
-   - 测试: `curl http://<service-ip>:8080/api/v1/users/123`
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [05-script-delay-response.yaml](05-script-delay-response.yaml) | 脚本延迟响应 | 脚本执行后延迟返回 |
+| [06-script-rule-response.yaml](06-script-rule-response.yaml) | 脚本+计数器组合 | 根据请求次数执行不同脚本 |
+| [07-regex-response.yaml](07-regex-response.yaml) | 正则匹配 | 使用正则表达式匹配 URL |
+| [08-inline-script.yaml](08-inline-script.yaml) | 内联脚本 | 直接在配置中定义脚本逻辑 |
+| [09-error-response.yaml](09-error-response.yaml) | 错误响应 | 返回 4xx/5xx 错误状态码 |
+| [10-complex-json.yaml](10-complex-json.yaml) | 复杂 JSON | 返回嵌套的复杂 JSON 结构 |
 
-### 计数器和规则
+### 延迟模拟
 
-4. **03-counter-response.yaml** - 计数器响应规则
-   - 根据请求次数返回不同的响应
-   - 前3次请求返回初始响应，之后返回默认响应
-   - 测试: `curl -X POST http://<service-ip>:8080/api/counter` (执行多次)
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [11-delay-fixed.yaml](11-delay-fixed.yaml) | 固定延迟 | 固定延迟 2 秒后返回响应 |
+| [12-delay-random.yaml](12-delay-random.yaml) | 随机延迟 | 100-1000ms 随机延迟 |
 
-5. **06-script-rule-response.yaml** - 响应规则（静态响应版）
-   - 根据请求次数返回不同的静态响应
-   - 测试: `curl http://<service-ip>:8080/api/users/123/details` (执行多次)
+### 请求体匹配
 
-### 脚本响应
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [13-body-match-equal.yaml](13-body-match-equal.yaml) | 精确匹配 | 请求体完全匹配指定内容 |
+| [14-body-match-contains.yaml](14-body-match-contains.yaml) | 包含匹配 | 请求体包含指定字符串 |
+| [15-body-match-regex.yaml](15-body-match-regex.yaml) | 正则匹配 | 使用正则表达式匹配请求体 |
 
-6. **04-script-response.yaml** - 脚本响应
-   - 使用外部脚本动态生成响应
-   - 需要提前准备好脚本文件
-   - 测试: `curl http://<service-ip>:8080/api/script`
+### 请求头匹配
 
-7. **05-script-delay-response.yaml** - 延迟脚本响应
-   - 模拟延迟响应，用于测试超时处理
-   - 测试: `curl -X POST http://<service-ip>:8080/api/delay`
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [16-header-match.yaml](16-header-match.yaml) | 请求头匹配 | 匹配 Authorization 等请求头 |
+| [17-header-user-agent.yaml](17-header-user-agent.yaml) | User-Agent 匹配 | 使用正则匹配 User-Agent |
 
-8. **08-inline-script.yaml** - 内联脚本响应
-   - 在 CRD 中直接定义脚本内容
-   - 不需要外部脚本文件
-   - 测试: `curl http://<service-ip>:8080/api/inline`
+### 代理转发
 
-### 高级功能
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [18-proxy-forward.yaml](18-proxy-forward.yaml) | 简单代理 | 将请求转发到目标服务 |
+| [19-proxy-transform.yaml](19-proxy-transform.yaml) | 代理+转换 | 转发请求并添加自定义头信息 |
 
-9. **09-error-response.yaml** - 错误响应
-   - 模拟各种 HTTP 错误状态码
-   - 500, 404, 429 错误轮询
-   - 测试: `curl http://<service-ip>:8080/api/error` (执行多次)
+### HTTP 方法支持
 
-10. **10-complex-json.yaml** - 复杂 JSON 响应
-    - 返回复杂的嵌套 JSON 数据结构
-    - 包含自定义响应头
-    - 测试: `curl -X POST http://<service-ip>:8080/api/complex`
+| 示例文件 | 功能描述 | 关键特性 |
+|---------|---------|---------|
+| [20-head-method.yaml](20-head-method.yaml) | HEAD 方法 | 处理 HEAD 请求 |
+| [21-options-method.yaml](21-options-method.yaml) | OPTIONS 方法 | 处理 CORS 预检请求 |
 
-## 快速开始
-
-### 部署示例
+## 快速使用
 
 ```bash
-# 部署单个示例
+# 应用示例配置
 kubectl apply -f examples/01-static-response.yaml
 
-# 部署所有示例
-kubectl apply -f examples/
-```
+# 查看创建的 Stub
+kubectl get httpteststub
 
-### 获取服务地址
-
-```bash
-# 获取 ClusterIP
-kubectl get service k8s-http-fake-operator
-
-# 在集群内测试
-curl http://<cluster-ip>:8080/api/health
-```
-
-### 从集群外测试
-
-```bash
-# 端口转发
+# 测试端点
 kubectl port-forward svc/k8s-http-fake-operator 8080:8080
-
-# 本地测试
 curl http://localhost:8080/api/health
 ```
 
-## 字段说明
+## 功能覆盖
 
-### URL 匹配类型
+这些示例覆盖了以下所有功能：
 
-- `exact` - 精确匹配
-- `pattern` - 通配符匹配，支持 `*` 匹配任意字符
-- `regex` - 正则表达式匹配
-
-### 响应类型
-
-- `static` - 静态响应，直接返回配置的 body
-- `script` - 脚本响应，执行脚本生成响应内容
-
-### 计数器规则
-
-- `range` - 在指定请求次数范围内生效
-- `default` - 默认规则，当其他规则不匹配时生效
-
-## 注意事项
-
-1. 脚本响应需要提前准备好脚本文件并挂载到容器中
-2. 内联脚本会在运行时写入临时文件并执行
-3. 计数器会在达到 `resetAfter` 后自动重置
-4. 所有示例都假设 operator 部署在 `default` 命名空间
+- ✅ 静态响应
+- ✅ 脚本响应（Shell）
+- ✅ 计数器响应（按请求次数）
+- ✅ URL 精确匹配
+- ✅ URL 通配符匹配
+- ✅ URL 正则匹配
+- ✅ 请求体精确匹配
+- ✅ 请求体包含匹配
+- ✅ 请求体正则匹配
+- ✅ 请求头匹配
+- ✅ 固定延迟模拟
+- ✅ 随机延迟模拟
+- ✅ 代理转发
+- ✅ 代理请求/响应头转换
+- ✅ GET/POST/PUT/DELETE/PATCH 方法
+- ✅ HEAD 方法
+- ✅ OPTIONS 方法
+- ✅ HTTP/HTTPS 协议
+- ✅ 错误响应（4xx/5xx）

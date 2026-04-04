@@ -1,0 +1,25 @@
+# 示例17: User-Agent 请求头正则匹配
+# 根据 User-Agent 请求头进行正则匹配
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: header-user-agent
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/browser
+    headers:
+      - name: User-Agent
+        matcher: matches
+        value: ".*Mozilla.*"
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "Browser request detected", "supported": true}'

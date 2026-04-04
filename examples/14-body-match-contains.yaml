@@ -1,0 +1,25 @@
+# 示例14: 请求体包含匹配
+# 根据请求体是否包含特定字符串进行匹配
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: body-match-contains
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/search
+    body:
+      type: json
+      matcher: contains
+      value: "keyword"
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"results": [{"id": 1, "title": "Result with keyword"}, {"id": 2, "title": "Another result"}]}'

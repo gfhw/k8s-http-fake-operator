@@ -1,0 +1,28 @@
+# 示例16: 请求头匹配
+# 根据请求头内容进行匹配
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: header-match
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/secure
+    headers:
+      - name: Authorization
+        matcher: contains
+        value: Bearer
+      - name: X-API-Version
+        matcher: equalTo
+        value: v1
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "Secure access granted", "version": "v1"}'

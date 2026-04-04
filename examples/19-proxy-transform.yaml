@@ -1,0 +1,25 @@
+# 示例19: 代理转发带请求/响应头转换
+# 将请求转发到真实服务，并添加自定义请求头和响应头
+apiVersion: httpteststub.example.com/v1
+kind: HTTPTestStub
+metadata:
+  name: proxy-transform
+  namespace: default
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/proxy/data
+  response:
+    type: proxy
+    proxy:
+      target: http://backend-service:8080
+      transform:
+        requestHeaders:
+          X-Forwarded-For: "127.0.0.1"
+          X-Proxy-Source: "k8s-http-fake-operator"
+        responseHeaders:
+          X-Proxy: "k8s-http-fake-operator"
+          X-Cache-Status: "MISS"
