@@ -552,8 +552,24 @@ func UpdateStubStatusRealtime(namespace, name string) {
 			stub.Status.LastRequestTime = &t
 		}
 
-		// 获取计数器值作为 requestCount
-		if counter, exists := stubCounters.Load(key); exists {
+		// 获取计数器值作为 requestCount（优先使用 HTTP 计数器）
+		httpCounterKey := key + "/http"
+		httpsCounterKey := key + "/https"
+
+		// 尝试获取 HTTP 计数器
+		if counter, exists := stubCounters.Load(httpCounterKey); exists {
+			c := counter.(*StubCounter)
+			c.mu.Lock()
+			stub.Status.RequestCount = c.count
+			c.mu.Unlock()
+		} else if counter, exists := stubCounters.Load(httpsCounterKey); exists {
+			// 如果没有 HTTP 计数器，尝试 HTTPS 计数器
+			c := counter.(*StubCounter)
+			c.mu.Lock()
+			stub.Status.RequestCount = c.count
+			c.mu.Unlock()
+		} else if counter, exists := stubCounters.Load(key); exists {
+			// 最后尝试主计数器（兼容旧逻辑）
 			c := counter.(*StubCounter)
 			c.mu.Lock()
 			stub.Status.RequestCount = c.count
