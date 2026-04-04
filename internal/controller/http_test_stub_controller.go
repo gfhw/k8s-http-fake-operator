@@ -374,7 +374,7 @@ func GetStubStats(stubKey string) (totalRequests, totalErrors int64, lastRequest
 	lastRequestTime = s.lastRequestTime
 
 	if s.totalRequests > 0 {
-		avgResponseTime = int64(s.totalDuration.Milliseconds() / time.Duration(s.totalRequests).Milliseconds())
+		avgResponseTime = int64(s.totalDuration.Milliseconds() / int64(s.totalRequests))
 		errorRate = int(float64(s.totalErrors) * 100 / float64(s.totalRequests))
 	}
 
@@ -466,6 +466,7 @@ func GetActiveConnections(stubKey string) int32 {
 // UpdateStubStatusRealtime 实时更新 stub 的 status 到 CR（非阻塞）
 func UpdateStubStatusRealtime(namespace, name string) {
 	if globalClient == nil {
+		logf.Log.WithName("status-update").Info("globalClient is nil, skipping status update")
 		return // 客户端未初始化，跳过
 	}
 
@@ -511,6 +512,8 @@ func UpdateStubStatusRealtime(namespace, name string) {
 		errorRate = int(float64(totalErrors) * 100 / float64(totalRequests))
 	}
 
+	logger := logf.Log.WithName("status-update")
+
 	// 使用后台 goroutine 更新 status，避免阻塞请求处理
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -519,6 +522,7 @@ func UpdateStubStatusRealtime(namespace, name string) {
 		var stub httpteststubv1.HTTPTestStub
 		err := globalClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, &stub)
 		if err != nil {
+			logger.Error(err, "failed to get stub for status update", "namespace", namespace, "name", name)
 			return
 		}
 
@@ -542,6 +546,11 @@ func UpdateStubStatusRealtime(namespace, name string) {
 			c.mu.Unlock()
 		}
 
-		_ = globalClient.Status().Update(ctx, &stub)
+		err = globalClient.Status().Update(ctx, &stub)
+		if err != nil {
+			logger.Error(err, "failed to update stub status", "namespace", namespace, "name", name)
+		} else {
+			logger.Info("successfully updated stub status", "namespace", namespace, "name", name, "requests", totalRequests)
+		}
 	}()
 }
