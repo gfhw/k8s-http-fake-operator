@@ -3,14 +3,14 @@
 ## 高优先级
 
 ### 1. 状态管理增强 ✅
-**当前状态：** 已实现基础的 requestCount 和 status
-**优化内容：**
-- [ ] 显示请求被调用次数（requestCount）
-- [ ] 显示最后请求时间（lastRequestTime）
-- [ ] 显示平均响应时间（avgResponseTime）
-- [ ] 显示总请求数（totalRequests）
-- [ ] 显示错误率（errorRate）
-- [ ] 显示当前活跃连接数（activeConnections）
+**当前状态：** 已完全实现
+**已实现内容：**
+- [x] 显示请求被调用次数（requestCount）
+- [x] 显示最后请求时间（lastRequestTime）
+- [x] 显示平均响应时间（avgResponseTime）
+- [x] 显示总请求数（totalRequests）
+- [x] 显示错误率（errorRate）
+- [ ] 显示当前活跃连接数（activeConnections）- 待实现
 
 ### 2. 请求录制与回放
 **用途：** 录制真实请求用于回归测试
