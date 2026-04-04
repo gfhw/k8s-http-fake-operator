@@ -140,59 +140,47 @@ url:
 
 ### 1. 静态响应
 
+返回预定义的静态 JSON 数据。
+
 ```yaml
 spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/health
   response:
     type: static
     static:
       status: 200
       headers:
         Content-Type: application/json
-      body:
-        message: "Hello World"
+      body: '{"status": "healthy", "message": "Service is running"}'
 ```
 
-### 2. 计数器响应（按请求次数返回不同响应）
+### 2. 脚本响应
+
+通过执行 Shell 脚本动态生成响应。
 
 ```yaml
 spec:
-  stubs:
-    - request:
-        method: POST
-        url:
-          type: exact
-          pattern: /api/counter
-      responseRules:
-        - rule:
-            type: range
-            start: 1
-            end: 3
-          response:
-            status: 200
-            body:
-              message: "First three requests"
-        - rule:
-            type: default
-          response:
-            status: 200
-            body:
-              message: "Default response"
-      counter:
-        reset: true
-        resetAfter: 10
-```
-
-### 3. 脚本响应
-
-```yaml
-spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/script
   response:
     type: script
     script:
-      name: example-script
+      name: dynamic-script
       type: shell
-      path: example.sh
+      path: /scripts/dynamic.sh
       timeout: 10
+      input:
+        - "arg1"
+        - "arg2"
       env:
         CUSTOM_VAR: "value"
 ```
@@ -207,12 +195,176 @@ spec:
 }
 ```
 
-**示例脚本**（`example.sh`）：
+**示例脚本**（`dynamic.sh`）：
 
 ```bash
 #!/bin/bash
 echo '{"body": {"message": "Hello from script!", "timestamp": '$(date +%s)'}, "headers": {"Content-Type": "application/json"}, "status": 200}'
 ```
+
+### 3. 计数器响应
+
+按请求次数返回不同的响应，支持 `range` 规则和 `default` 规则。
+
+```yaml
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/counter
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "Default response"}'
+  stubs:
+    - request:
+        method: POST
+        url:
+          type: exact
+          pattern: /api/counter
+      responseRules:
+        - rule:
+            type: range
+            start: 1
+            end: 3
+          response:
+            status: 200
+            headers:
+              Content-Type: application/json
+            body: '{"message": "First three requests", "phase": "initial"}'
+        - rule:
+            type: default
+          response:
+            status: 200
+            headers:
+              Content-Type: application/json
+            body: '{"message": "Default response", "phase": "normal"}'
+      counter:
+        reset: true
+        resetAfter: 10
+```
+
+**规则说明**：
+- `range`：第 N 次请求到第 M 次请求返回指定响应（如第 1-3 次返回 `initial`，第 4 次以后返回 `normal`）
+- `default`：所有不满足 range 条件的请求返回默认响应
+
+### 4. 脚本+计数器组合
+
+将脚本响应与计数器规则结合，实现更复杂的动态响应逻辑。
+
+```yaml
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: pattern
+      pattern: /api/users/*/status
+  stubs:
+    - request:
+        method: GET
+        url:
+          type: pattern
+          pattern: /api/users/*/status
+      responseRules:
+        - rule:
+            type: range
+            start: 1
+            end: 5
+          script:
+            name: first-five-script
+            type: shell
+            path: /scripts/first_five.sh
+        - rule:
+            type: default
+          script:
+            name: default-script
+            type: shell
+            path: /scripts/default.sh
+      counter:
+        reset: true
+        resetAfter: 60
+```
+
+### 5. 多规则响应
+
+支持在 `stubs` 数组中定义多个规则，每个规则对应不同的请求匹配条件。
+
+```yaml
+spec:
+  protocol: http
+  stubs:
+    - request:
+        method: GET
+        url:
+          type: exact
+          pattern: /api/users
+      responseRules:
+        - rule:
+            type: default
+          response:
+            status: 200
+            headers:
+              Content-Type: application/json
+            body: '{"endpoint": "users"}'
+    - request:
+        method: GET
+        url:
+          type: exact
+          pattern: /api/orders
+      responseRules:
+        - rule:
+            type: default
+          response:
+            status: 200
+            headers:
+              Content-Type: application/json
+            body: '{"endpoint": "orders"}'
+```
+
+## Status 状态
+
+每个 HTTPTestStub CR 都有 `status` 字段，实时显示打桩服务的运行状态和统计信息：
+
+```bash
+kubectl get HTTPTestStub <name> -o yaml
+```
+
+### Status 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `phase` | string | 当前状态：`Running`（运行中）/ `Pending`（等待中）/ `Failed`（失败）|
+| `requestCount` | int | 当前计数器值（用于计数器规则的请求次数统计）|
+| `totalRequests` | int64 | 累计总请求数（HTTP + HTTPS）|
+| `totalErrors` | int64 | 累计错误数（返回 4xx/5xx 状态的请求）|
+| `lastRequestTime` | string | 最后一次请求的时间戳（RFC3339 格式）|
+| `avgResponseTime` | int64 | 平均响应时间（毫秒）|
+| `errorRate` | int | 错误率百分比（0-100）|
+| `activeConnections` | int32 | 当前正在处理的活跃连接数 |
+
+### 示例 Status
+
+```yaml
+status:
+  phase: Running
+  requestCount: 5
+  totalRequests: 42
+  totalErrors: 3
+  lastRequestTime: "2026-04-04T12:05:52Z"
+  avgResponseTime: 17
+  errorRate: 7
+  activeConnections: 1
+```
+
+### 统计信息重置
+
+当 CR 的 `spec` 发生变更时（如修改 `protocol`、`request.url.pattern`、`request.method` 等），统计信息会自动重置为 0。
 
 ## 配置参考
 
