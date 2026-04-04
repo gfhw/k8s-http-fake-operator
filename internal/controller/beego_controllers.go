@@ -2,8 +2,12 @@ package controller
 
 import (
 	"fmt"
+	"io"
+	"math/rand"
 	"net/http"
+	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	beego "github.com/beego/beego/v2/server/web"
@@ -32,6 +36,14 @@ func (c *StubController) Delete() {
 
 func (c *StubController) Patch() {
 	c.handleRequest("PATCH")
+}
+
+func (c *StubController) Head() {
+	c.handleRequest("HEAD")
+}
+
+func (c *StubController) Options() {
+	c.handleRequest("OPTIONS")
 }
 
 // GetProtocol 获取当前请求的协议类型
@@ -157,6 +169,11 @@ func (c *StubController) handleResponse(response *httpteststubv1.Response) bool 
 			return c.sendScriptResponse(response.Script)
 		}
 		return true // 错误：脚本响应为空
+	case "proxy":
+		if response.Proxy != nil {
+			return c.sendProxyResponse(response.Proxy)
+		}
+		return true // 错误：代理配置为空
 	default:
 		c.Ctx.Output.SetStatus(http.StatusInternalServerError)
 		c.Ctx.Output.JSON(map[string]string{
@@ -168,6 +185,9 @@ func (c *StubController) handleResponse(response *httpteststubv1.Response) bool 
 }
 
 func (c *StubController) sendStaticResponse(static *httpteststubv1.Static) {
+	// 应用延迟
+	applyDelay(static.Delay)
+
 	for key, value := range static.Headers {
 		c.Ctx.Output.Header(key, value)
 	}
@@ -206,6 +226,73 @@ func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) bool 
 	c.Ctx.Output.SetStatus(statusCode)
 	c.Ctx.Output.Body(body)
 	return statusCode >= 400 // 4xx/5xx 认为是错误
+}
+
+func (c *StubController) sendProxyResponse(proxy *httpteststubv1.Proxy) bool {
+	// 创建代理请求
+	targetURL := proxy.Target + c.Ctx.Request.URL.RequestURI()
+	req, err := http.NewRequest(c.Ctx.Request.Method, targetURL, c.Ctx.Request.Body)
+	if err != nil {
+		c.Ctx.Output.SetStatus(http.StatusInternalServerError)
+		c.Ctx.Output.JSON(map[string]string{
+			"error": fmt.Sprintf("Failed to create proxy request: %v", err),
+		}, false, false)
+		return true // 错误
+	}
+
+	// 复制请求头
+	for key, values := range c.Ctx.Request.Header {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+
+	// 应用请求头转换
+	if proxy.Transform != nil {
+		for key, value := range proxy.Transform.RequestHeaders {
+			req.Header.Set(key, value)
+		}
+	}
+
+	// 发送请求到目标服务器
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Ctx.Output.SetStatus(http.StatusBadGateway)
+		c.Ctx.Output.JSON(map[string]string{
+			"error": fmt.Sprintf("Failed to forward request: %v", err),
+		}, false, false)
+		return true // 错误
+	}
+	defer resp.Body.Close()
+
+	// 复制响应头
+	for key, values := range resp.Header {
+		for _, value := range values {
+			c.Ctx.Output.Header(key, value)
+		}
+	}
+
+	// 应用响应头转换
+	if proxy.Transform != nil {
+		for key, value := range proxy.Transform.ResponseHeaders {
+			c.Ctx.Output.Header(key, value)
+		}
+	}
+
+	// 复制响应状态码和体
+	c.Ctx.Output.SetStatus(resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.Ctx.Output.SetStatus(http.StatusInternalServerError)
+		c.Ctx.Output.JSON(map[string]string{
+			"error": fmt.Sprintf("Failed to read response body: %v", err),
+		}, false, false)
+		return true // 错误
+	}
+
+	c.Ctx.Output.Body(body)
+	return resp.StatusCode >= 400 // 4xx/5xx 认为是错误
 }
 
 type HealthController struct {
@@ -256,4 +343,80 @@ func (c *ReadyController) Get() {
 	c.Ctx.Output.JSON(map[string]string{
 		"status": "ready",
 	}, false, false)
+}
+
+// matchBody 匹配请求体
+func matchBody(requestBody string, bodyConfig *httpteststubv1.Body) bool {
+	if bodyConfig == nil {
+		return true
+	}
+
+	switch bodyConfig.Matcher {
+	case "equalTo":
+		return requestBody == bodyConfig.Value
+	case "contains":
+		return strings.Contains(requestBody, bodyConfig.Value)
+	case "matches":
+		matched, _ := regexp.MatchString(bodyConfig.Value, requestBody)
+		return matched
+	case "jsonPath":
+		// 简单实现：检查 JSON 中是否包含指定路径的值
+		// 实际项目中可以使用 github.com/tidwall/gjson
+		return strings.Contains(requestBody, bodyConfig.JSONPath)
+	default:
+		return strings.Contains(requestBody, bodyConfig.Value)
+	}
+}
+
+// matchHeaders 匹配请求头
+func matchHeaders(requestHeaders map[string]string, headerConfigs []httpteststubv1.Header) bool {
+	if len(headerConfigs) == 0 {
+		return true
+	}
+
+	for _, header := range headerConfigs {
+		value, exists := requestHeaders[header.Name]
+		if !exists {
+			return false
+		}
+
+		switch header.Matcher {
+		case "equalTo":
+			if value != header.Value {
+				return false
+			}
+		case "contains":
+			if !strings.Contains(value, header.Value) {
+				return false
+			}
+		case "matches":
+			matched, _ := regexp.MatchString(header.Value, value)
+			if !matched {
+				return false
+			}
+		default:
+			if !strings.Contains(value, header.Value) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// applyDelay 应用延迟
+func applyDelay(delayConfig *httpteststubv1.Delay) {
+	if delayConfig == nil {
+		return
+	}
+
+	if delayConfig.Fixed > 0 {
+		time.Sleep(time.Duration(delayConfig.Fixed) * time.Millisecond)
+	} else if delayConfig.Random != nil {
+		min := delayConfig.Random.Min
+		max := delayConfig.Random.Max
+		if min < max {
+			delay := min + rand.Intn(max-min)
+			time.Sleep(time.Duration(delay) * time.Millisecond)
+		}
+	}
 }

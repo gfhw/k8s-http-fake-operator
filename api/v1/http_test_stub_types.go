@@ -16,8 +16,25 @@ type HTTPTestStubSpec struct {
 
 // Request 请求匹配规则
 type Request struct {
-	Method string `json:"method"`
-	URL    URL    `json:"url"`
+	Method  string   `json:"method"`
+	URL     URL      `json:"url"`
+	Body    *Body    `json:"body,omitempty"`    // 请求体匹配
+	Headers []Header `json:"headers,omitempty"` // 请求头匹配
+}
+
+// Body 请求体匹配规则
+type Body struct {
+	Type     string `json:"type"`               // json, xml, text, regex
+	Matcher  string `json:"matcher"`            // equalTo, contains, matches, jsonPath
+	Value    string `json:"value"`              // 匹配值
+	JSONPath string `json:"jsonPath,omitempty"` // JSONPath 表达式（当 matcher 为 jsonPath 时使用）
+}
+
+// Header 请求头匹配规则
+type Header struct {
+	Name    string `json:"name"`
+	Matcher string `json:"matcher"` // equalTo, contains, matches
+	Value   string `json:"value"`
 }
 
 // URL URL匹配规则
@@ -32,6 +49,20 @@ type Response struct {
 	Type   string  `json:"type"`
 	Static *Static `json:"static,omitempty"`
 	Script *Script `json:"script,omitempty"`
+	Proxy  *Proxy  `json:"proxy,omitempty"` // 代理转发配置
+}
+
+// Proxy 代理转发配置
+type Proxy struct {
+	Target    string          `json:"target"`              // 目标地址，如 http://real-service:8080
+	Record    bool            `json:"record,omitempty"`    // 是否录制响应
+	Transform *ProxyTransform `json:"transform,omitempty"` // 请求/响应转换
+}
+
+// ProxyTransform 代理转发时的转换配置
+type ProxyTransform struct {
+	RequestHeaders  map[string]string `json:"requestHeaders,omitempty"`  // 添加/修改请求头
+	ResponseHeaders map[string]string `json:"responseHeaders,omitempty"` // 添加/修改响应头
 }
 
 // Static 静态响应配置
@@ -39,6 +70,19 @@ type Static struct {
 	Status  int               `json:"status"`
 	Headers map[string]string `json:"headers"`
 	Body    string            `json:"body"`
+	Delay   *Delay            `json:"delay,omitempty"` // 延迟配置
+}
+
+// Delay 延迟配置
+type Delay struct {
+	Fixed  int          `json:"fixed,omitempty"`  // 固定延迟（毫秒）
+	Random *RandomDelay `json:"random,omitempty"` // 随机延迟
+}
+
+// RandomDelay 随机延迟配置
+type RandomDelay struct {
+	Min int `json:"min"` // 最小延迟（毫秒）
+	Max int `json:"max"` // 最大延迟（毫秒）
 }
 
 // Script 脚本配置

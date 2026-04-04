@@ -6,11 +6,15 @@
 
 - **高性能**：使用 Beego 框架 + 内存缓存，支持高并发请求
 - **灵活匹配**：支持 URL 精确匹配、通配符匹配和正则表达式匹配
-- **多种响应**：支持静态响应、计数器响应（按请求次数返回不同响应）
+- **多种响应**：支持静态响应、计数器响应（按请求次数返回不同响应）、脚本响应和代理转发
 - **脚本支持**：支持 Shell 脚本动态生成响应
 - **资源管理**：内置速率限制和资源监控
 - **配置热更新**：CR 变更自动同步到内存缓存
 - **云原生**：完整的 Helm Chart 支持，支持多部署隔离
+- **HTTP 方法支持**：支持 GET、POST、PUT、DELETE、PATCH、HEAD、OPTIONS 方法
+- **延迟模拟**：支持固定延迟和随机延迟模拟
+- **请求匹配增强**：支持请求体匹配和请求头匹配
+- **代理转发**：支持将请求转发到真实服务并返回响应
 
 ## 架构设计
 
@@ -136,6 +140,65 @@ url:
   regex: /api/users/[0-9]+
 ```
 
+## 请求体匹配
+
+支持对请求体进行匹配，用于更精确地识别请求。
+
+```yaml
+spec:
+  protocol: http
+  request:
+    method: POST
+    url:
+      type: exact
+      pattern: /api/login
+    body:
+      type: json
+      matcher: equalTo
+      value: '{"username": "admin", "password": "123456"}'
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"token": "jwt-token"}'
+```
+
+**匹配类型**：
+- `equalTo`：完全匹配
+- `contains`：包含指定字符串
+- `matches`：正则表达式匹配
+- `jsonPath`：JSON 路径匹配
+
+## 请求头匹配
+
+支持对请求头进行匹配，用于识别特定的客户端请求。
+
+```yaml
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/secure
+    headers:
+      - name: Authorization
+        matcher: contains
+        value: Bearer
+      - name: User-Agent
+        matcher: matches
+        value: .*Mozilla.*
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "Secure access granted"}'
+```
+
 ## 响应类型
 
 ### 1. 静态响应
@@ -157,6 +220,34 @@ spec:
       headers:
         Content-Type: application/json
       body: '{"status": "healthy", "message": "Service is running"}'
+```
+
+#### 延迟模拟
+
+支持固定延迟和随机延迟模拟，用于测试超时场景。
+
+```yaml
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/delay
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"message": "Delayed response"}'
+      delay:
+        # 固定延迟 500ms
+        fixed: 500
+        # 或随机延迟 100-1000ms
+        # random:
+        #   min: 100
+        #   max: 1000
 ```
 
 ### 2. 脚本响应
@@ -201,6 +292,15 @@ spec:
 #!/bin/bash
 echo '{"body": {"message": "Hello from script!", "timestamp": '$(date +%s)'}, "headers": {"Content-Type": "application/json"}, "status": 200}'
 ```
+
+#### 环境变量
+
+脚本执行时会自动注入以下环境变量：
+
+- `REQUEST_METHOD`：HTTP 请求方法
+- `REQUEST_PATH`：请求路径
+- `REQUEST_HEADERS`：请求头（JSON 格式）
+- `REQUEST_BODY`：请求体
 
 ### 3. 计数器响应
 
@@ -326,6 +426,38 @@ spec:
               Content-Type: application/json
             body: '{"endpoint": "orders"}'
 ```
+
+### 6. 代理转发响应
+
+将请求转发到真实服务并返回响应，支持请求头和响应头转换。
+
+```yaml
+spec:
+  protocol: http
+  request:
+    method: GET
+    url:
+      type: exact
+      pattern: /api/external
+  response:
+    type: proxy
+    proxy:
+      target: http://real-service:8080
+      record: false
+      transform:
+        requestHeaders:
+          X-Forwarded-For: "127.0.0.1"
+          Custom-Header: "value"
+        responseHeaders:
+          X-Proxy: "k8s-http-fake-operator"
+```
+
+**配置说明**：
+- `target`：目标服务地址，如 `http://real-service:8080`
+- `record`：是否录制响应（默认 false）
+- `transform`：请求/响应转换配置
+  - `requestHeaders`：添加或修改请求头
+  - `responseHeaders`：添加或修改响应头
 
 ## Status 状态
 
@@ -479,41 +611,7 @@ service:
 
 每套部署只监听属于自己的 CR，互不干扰。
 
-## 高级功能
 
-### 脚本与计数器结合
-
-```yaml
-spec:
-  stubs:
-    - responseRules:
-        - rule:
-            type: range
-            start: 1
-            end: 3
-          script:
-            name: first-script
-            type: shell
-            path: first_three.sh
-        - rule:
-            type: default
-          script:
-            name: default-script
-            type: shell
-            path: default.sh
-      counter:
-        reset: true
-        resetAfter: 10
-```
-
-### 环境变量
-
-脚本执行时会自动注入以下环境变量：
-
-- `REQUEST_METHOD`：HTTP 请求方法
-- `REQUEST_PATH`：请求路径
-- `REQUEST_HEADERS`：请求头（JSON 格式）
-- `REQUEST_BODY`：请求体
 
 ## 测试服务
 
