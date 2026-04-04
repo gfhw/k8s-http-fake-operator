@@ -239,9 +239,9 @@ spec:
                 type: string
 
               requestCount:
-                  description: RequestCount is the current request count (for counter rules)
-                  type: integer
-                  format: int32
+                description: RequestCount is the current request count (for counter rules)
+                type: integer
+                format: int32
               totalRequests:
                 description: TotalRequests is the cumulative total number of requests
                 type: integer
