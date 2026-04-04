@@ -61,7 +61,7 @@ func (c *StubController) handleRequest(method string) {
 		return
 	}
 
-	stubKey := fmt.Sprintf("%s/%s", stub.Namespace, stub.Name)
+	stubKey := fmt.Sprintf("%s/%s/%s", stub.Namespace, stub.Name, protocol)
 
 	if !CheckResourceLimit(stubKey, 1000) {
 		duration := time.Since(startTime)
@@ -73,11 +73,11 @@ func (c *StubController) handleRequest(method string) {
 		return
 	}
 
-	c.handleStubResponse(stub, method, path, startTime)
+	c.handleStubResponse(stub, method, path, startTime, protocol)
 }
 
-func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, method, path string, startTime time.Time) {
-	stubKey := fmt.Sprintf("%s/%s", stub.Namespace, stub.Name)
+func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, method, path string, startTime time.Time, protocol string) {
+	stubKey := fmt.Sprintf("%s/%s/%s", stub.Namespace, stub.Name, protocol)
 	isError := true
 	defer func() {
 		duration := time.Since(startTime)

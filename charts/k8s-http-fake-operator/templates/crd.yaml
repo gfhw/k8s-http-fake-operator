@@ -234,13 +234,33 @@ spec:
           status:
             description: HTTPTestStubStatus defines the observed state of HTTPTestStub
             properties:
-              requestCount:
-                type: integer
-              status:
+              phase:
+                description: Phase represents the current status phase: Pending, Running, Failed
                 type: string
-            required:
-            - requestCount
-            - status
+              requestCount:
+                description: RequestCount is the current request count (for counter rules)
+                type: integer
+                format: int32
+              totalRequests:
+                description: TotalRequests is the cumulative total number of requests
+                type: integer
+                format: int64
+              lastRequestTime:
+                description: LastRequestTime is the timestamp of the last request
+                type: string
+                format: date-time
+              avgResponseTime:
+                description: AvgResponseTime is the average response time in milliseconds
+                type: integer
+                format: int64
+              errorRate:
+                description: ErrorRate is the error percentage (0-100)
+                type: integer
+                format: int32
+              totalErrors:
+                description: TotalErrors is the cumulative total number of errors
+                type: integer
+                format: int64
             type: object
         type: object
     served: true

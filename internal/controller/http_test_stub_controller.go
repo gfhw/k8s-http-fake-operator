@@ -77,9 +77,8 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		})
 	}
 
-	// 更新状态为 Running
-	httpTestStub.Status.Phase = "Running"
-	if err := r.Status().Update(ctx, &httpTestStub); err != nil {
+	// 更新状态为 Running 并包含统计信息
+	if err := r.UpdateStubStatus(ctx, &httpTestStub); err != nil {
 		log.Error(err, "unable to update HTTPTestStub status")
 		return ctrl.Result{}, err
 	}
@@ -90,10 +89,46 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *HTTPTestStubReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&httpteststubv1.HTTPTestStub{}).
 		Named("httpteststub").
-		Complete(r)
+		Complete(r); err != nil {
+		return err
+	}
+
+	// 启动定时器，每 10 秒更新一次所有 stub 的 status
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		ctx := context.Background()
+
+		for range ticker.C {
+			r.updateAllStubsStatus(ctx)
+		}
+	}()
+
+	return nil
+}
+
+// updateAllStubsStatus 更新所有 stub 的 status
+func (r *HTTPTestStubReconciler) updateAllStubsStatus(ctx context.Context) {
+	stubCache.Range(func(key, value interface{}) bool {
+		stub := value.(*httpteststubv1.HTTPTestStub)
+
+		var currentStub httpteststubv1.HTTPTestStub
+		if err := r.Get(ctx, client.ObjectKey{
+			Namespace: stub.Namespace,
+			Name:      stub.Name,
+		}, &currentStub); err != nil {
+			return true // 跳过获取失败的 stub
+		}
+
+		if err := r.UpdateStubStatus(ctx, &currentStub); err != nil {
+			logf.Log.Error(err, "unable to update stub status", "name", stub.Name, "namespace", stub.Namespace)
+		}
+
+		return true
+	})
 }
 
 func GetMatchingStub(method, path, protocol string) *httpteststubv1.HTTPTestStub {
@@ -341,7 +376,40 @@ func GetStubStats(stubKey string) (totalRequests, totalErrors int64, lastRequest
 func (r *HTTPTestStubReconciler) UpdateStubStatus(ctx context.Context, stub *httpteststubv1.HTTPTestStub) error {
 	key := fmt.Sprintf("%s/%s", stub.Namespace, stub.Name)
 
-	totalRequests, totalErrors, lastRequestTime, avgResponseTime, errorRate := GetStubStats(key)
+	// 获取 HTTP 和 HTTPS 的统计信息并合并
+	httpTotalRequests, httpTotalErrors, httpLastRequestTime, httpAvgResponseTime, _ := GetStubStats(key + "/http")
+	httpsTotalRequests, httpsTotalErrors, httpsLastRequestTime, httpsAvgResponseTime, _ := GetStubStats(key + "/https")
+
+	// 合并统计信息
+	totalRequests := httpTotalRequests + httpsTotalRequests
+	totalErrors := httpTotalErrors + httpsTotalErrors
+
+	// 选择最近的请求时间
+	var lastRequestTime time.Time
+	if !httpLastRequestTime.IsZero() && !httpsLastRequestTime.IsZero() {
+		if httpLastRequestTime.After(httpsLastRequestTime) {
+			lastRequestTime = httpLastRequestTime
+		} else {
+			lastRequestTime = httpsLastRequestTime
+		}
+	} else if !httpLastRequestTime.IsZero() {
+		lastRequestTime = httpLastRequestTime
+	} else if !httpsLastRequestTime.IsZero() {
+		lastRequestTime = httpsLastRequestTime
+	}
+
+	// 计算加权平均响应时间
+	var avgResponseTime int64
+	if totalRequests > 0 {
+		totalDuration := httpTotalRequests*httpAvgResponseTime + httpsTotalRequests*httpsAvgResponseTime
+		avgResponseTime = totalDuration / totalRequests
+	}
+
+	// 计算总错误率
+	var errorRate int
+	if totalRequests > 0 {
+		errorRate = int(float64(totalErrors) * 100 / float64(totalRequests))
+	}
 
 	stub.Status.Phase = "Running"
 	stub.Status.TotalRequests = totalRequests
