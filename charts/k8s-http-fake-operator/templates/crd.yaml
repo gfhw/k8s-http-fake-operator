@@ -237,9 +237,8 @@ spec:
               phase:
                 description: Phase represents the current status phase: Pending, Running, Failed
                 type: string
-
               requestCount:
-                description: RequestCount is the current request count (for counter rules)
+                description: RequestCount is the current request count
                 type: integer
                 format: int32
               totalRequests:
