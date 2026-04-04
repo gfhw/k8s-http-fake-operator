@@ -58,6 +58,9 @@ var stubStatsMap sync.Map
 var globalClient client.Client
 var clientOnce sync.Once
 
+// stubSpecHashMap 存储每个 stub 的 spec hash，用于检测变更
+var stubSpecHashMap sync.Map
+
 func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -85,6 +88,17 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			lastResetTime: time.Now(),
 		})
 	}
+
+	// 检测 spec 是否变更，如果变更则重置统计信息
+	currentHash := calculateSpecHash(&httpTestStub.Spec)
+	if lastHash, exists := stubSpecHashMap.Load(key); exists {
+		if lastHash.(string) != currentHash {
+			// spec 发生变更，重置统计信息
+			log.Info("HTTPTestStub spec changed, resetting stats", "name", httpTestStub.Name, "namespace", httpTestStub.Namespace)
+			ResetStubStats(key)
+		}
+	}
+	stubSpecHashMap.Store(key, currentHash)
 
 	// 更新状态为 Running 并包含统计信息
 	if err := r.UpdateStubStatus(ctx, &httpTestStub); err != nil {
@@ -553,4 +567,31 @@ func UpdateStubStatusRealtime(namespace, name string) {
 			logger.Info("successfully updated stub status", "namespace", namespace, "name", name, "requests", totalRequests)
 		}
 	}()
+}
+
+// calculateSpecHash 计算 spec 的 hash 值
+func calculateSpecHash(spec *httpteststubv1.HTTPTestStubSpec) string {
+	// 使用 JSON 序列化后计算简单 hash
+	data, _ := json.Marshal(spec)
+	h := 0
+	for i := 0; i < len(data); i++ {
+		h = 31*h + int(data[i])
+	}
+	return fmt.Sprintf("%d", h)
+}
+
+// ResetStubStats 重置指定 stub 的所有统计信息
+func ResetStubStats(key string) {
+	// 重置 HTTP 统计
+	httpKey := key + "/http"
+	stubStatsMap.Delete(httpKey)
+	activeConnectionsMap.Delete(httpKey)
+
+	// 重置 HTTPS 统计
+	httpsKey := key + "/https"
+	stubStatsMap.Delete(httpsKey)
+	activeConnectionsMap.Delete(httpsKey)
+
+	// 重置计数器
+	stubCounters.Delete(key)
 }
