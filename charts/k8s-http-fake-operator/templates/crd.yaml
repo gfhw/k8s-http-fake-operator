@@ -235,7 +235,7 @@ spec:
             description: HTTPTestStubStatus defines the observed state of HTTPTestStub
             properties:
               phase:
-                description: Phase represents the current status phase: Pending, Running, Failed
+                description: "Phase represents the current status phase - Pending, Running, Failed"
                 type: string
               requestCount:
                 description: RequestCount is the current request count
