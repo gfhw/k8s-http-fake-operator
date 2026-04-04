@@ -244,21 +244,16 @@ service:
   httpPort: 8080
 ```
 
-**2. 启用 TLS（使用自签名证书）**：
+**2. 启用 TLS**：
 
-```yaml
-tls:
-  enabled: true
-  autoGenerate: true  # 默认使用自签名证书
-```
-
-**3. 使用自定义证书**：
+| 证书类型 | 配置 | 客户端行为 |
+|---------|------|-----------|
+| 自签名证书 | `tls.autoGenerate: true` | 客户端需要加 `-k` |
+| CA 签名证书 | `tls.autoGenerate: false` + `certSecretName` | 客户端无需特殊配置 |
 
 ```bash
-# 创建 TLS Secret
+# 使用 CA 签名证书（推荐，客户端无需 -k）
 kubectl create secret tls my-cert --cert=cert.crt --key=cert.key
-
-# 部署时指定
 helm install k8s-http-fake-operator ./charts/k8s-http-fake-operator \
   --set tls.autoGenerate=false \
   --set tls.certSecretName=my-cert
