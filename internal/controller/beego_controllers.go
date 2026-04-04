@@ -45,6 +45,7 @@ func (c *StubController) GetProtocol() string {
 }
 
 func (c *StubController) handleRequest(method string) {
+	startTime := time.Now()
 	path := c.Ctx.Input.URL()
 	protocol := c.GetProtocol()
 
@@ -63,6 +64,8 @@ func (c *StubController) handleRequest(method string) {
 	stubKey := fmt.Sprintf("%s/%s", stub.Namespace, stub.Name)
 
 	if !CheckResourceLimit(stubKey, 1000) {
+		duration := time.Since(startTime)
+		RecordRequestStats(stubKey, duration, true)
 		c.Ctx.Output.SetStatus(http.StatusTooManyRequests)
 		c.Ctx.Output.JSON(map[string]string{
 			"error": "Rate limit exceeded",
@@ -70,21 +73,32 @@ func (c *StubController) handleRequest(method string) {
 		return
 	}
 
-	c.handleStubResponse(stub, method, path)
+	c.handleStubResponse(stub, method, path, startTime)
 }
 
-func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, method, path string) {
+func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, method, path string, startTime time.Time) {
 	stubKey := fmt.Sprintf("%s/%s", stub.Namespace, stub.Name)
+	isError := true
+	defer func() {
+		duration := time.Since(startTime)
+		RecordRequestStats(stubKey, duration, isError)
+	}()
 
 	for _, s := range stub.Spec.Stubs {
 		if matchRequest(method, path, &s.Request) {
-			c.handleStubRules(stubKey, &s)
+			err := c.handleStubRules(stubKey, &s)
+			if !err {
+				isError = false
+			}
 			return
 		}
 	}
 
 	if matchRequest(method, path, &stub.Spec.Request) {
-		c.handleResponse(&stub.Spec.Response)
+		err := c.handleResponse(&stub.Spec.Response)
+		if !err {
+			isError = false
+		}
 		return
 	}
 
@@ -94,7 +108,7 @@ func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, m
 	}, false, false)
 }
 
-func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.Stub) {
+func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.Stub) bool {
 	count := IncrementCounter(stubKey)
 
 	if stub.Counter.ResetAfter > 0 {
@@ -106,12 +120,12 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
-			return
+			return false // 成功，不是错误
 		} else if rule.Rule.Type == "default" {
 			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
-			return
+			return false // 成功，不是错误
 		}
 	}
 
@@ -120,24 +134,30 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 		"result": true,
 		"count":  count,
 	}, false, false)
+	return false // 成功，不是错误
 }
 
-func (c *StubController) handleResponse(response *httpteststubv1.Response) {
+func (c *StubController) handleResponse(response *httpteststubv1.Response) bool {
 	switch response.Type {
 	case "static":
 		if response.Static != nil {
 			c.sendStaticResponse(response.Static)
+			return false // 成功
 		}
+		return true // 错误：静态响应为空
 	case "script":
 		if response.Script != nil {
-			c.sendScriptResponse(response.Script)
+			return c.sendScriptResponse(response.Script)
 		}
+		return true // 错误：脚本响应为空
 	default:
 		c.Ctx.Output.SetStatus(http.StatusInternalServerError)
 		c.Ctx.Output.JSON(map[string]string{
 			"error": "Unknown response type",
 		}, false, false)
+		return true // 错误：未知响应类型
 	}
+	return true // 默认错误
 }
 
 func (c *StubController) sendStaticResponse(static *httpteststubv1.Static) {
@@ -149,7 +169,7 @@ func (c *StubController) sendStaticResponse(static *httpteststubv1.Static) {
 	c.Ctx.Output.Body([]byte(static.Body))
 }
 
-func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) {
+func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) bool {
 	executor := NewScriptExecutor()
 	requestContext := map[string]interface{}{
 		"method":  c.Ctx.Request.Method,
@@ -164,7 +184,7 @@ func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) {
 		c.Ctx.Output.JSON(map[string]interface{}{
 			"error": fmt.Sprintf("Script execution failed: %v", err),
 		}, false, false)
-		return
+		return true // 错误
 	}
 
 	_, scriptHeaders, scriptStatus := ParseScriptOutput(body)
@@ -178,6 +198,7 @@ func (c *StubController) sendScriptResponse(script *httpteststubv1.Script) {
 
 	c.Ctx.Output.SetStatus(statusCode)
 	c.Ctx.Output.Body(body)
+	return statusCode >= 400 // 4xx/5xx 认为是错误
 }
 
 type HealthController struct {
@@ -195,7 +216,7 @@ func (c *HealthController) Get() {
 		stats := map[string]interface{}{
 			"name":                stub.Name,
 			"namespace":           stub.Namespace,
-			"status":              stub.Status.Status,
+			"phase":               stub.Status.Phase,
 			"requests_per_minute": requestsPerMinute,
 			"total_requests":      totalRequests,
 			"uptime_seconds":      int64(uptime.Seconds()),

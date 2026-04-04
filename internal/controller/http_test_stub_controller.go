@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,6 +42,18 @@ type ResourceLimit struct {
 	startTime            time.Time
 }
 
+// StubStats 用于跟踪 stub 的请求统计信息
+type StubStats struct {
+	mu              sync.Mutex
+	totalRequests   int64
+	totalErrors     int64
+	lastRequestTime time.Time
+	totalDuration   time.Duration
+}
+
+// stubStatsMap 存储每个 stub 的统计信息
+var stubStatsMap sync.Map
+
 func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
@@ -64,7 +77,8 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		})
 	}
 
-	httpTestStub.Status.Status = "Running"
+	// 更新状态为 Running
+	httpTestStub.Status.Phase = "Running"
 	if err := r.Status().Update(ctx, &httpTestStub); err != nil {
 		log.Error(err, "unable to update HTTPTestStub status")
 		return ctrl.Result{}, err
@@ -277,4 +291,68 @@ func RemoveStubFromCache(key string) {
 	stubCache.Delete(key)
 	stubCounters.Delete(key)
 	resourceLimits.Delete(key)
+	stubStatsMap.Delete(key)
+}
+
+// RecordRequestStats 记录请求统计信息
+func RecordRequestStats(stubKey string, duration time.Duration, isError bool) {
+	stats, exists := stubStatsMap.Load(stubKey)
+	if !exists {
+		stats = &StubStats{}
+		stubStatsMap.Store(stubKey, stats)
+	}
+
+	s := stats.(*StubStats)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.totalRequests++
+	s.lastRequestTime = time.Now()
+	s.totalDuration += duration
+	if isError {
+		s.totalErrors++
+	}
+}
+
+// GetStubStats 获取 stub 的统计信息
+func GetStubStats(stubKey string) (totalRequests, totalErrors int64, lastRequestTime time.Time, avgResponseTime int64, errorRate int) {
+	stats, exists := stubStatsMap.Load(stubKey)
+	if !exists {
+		return 0, 0, time.Time{}, 0, 0
+	}
+
+	s := stats.(*StubStats)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	totalRequests = s.totalRequests
+	totalErrors = s.totalErrors
+	lastRequestTime = s.lastRequestTime
+
+	if s.totalRequests > 0 {
+		avgResponseTime = int64(s.totalDuration.Milliseconds() / time.Duration(s.totalRequests).Milliseconds())
+		errorRate = int(float64(s.totalErrors) * 100 / float64(s.totalRequests))
+	}
+
+	return
+}
+
+// UpdateStubStatus 更新 stub 的 status 到 CR
+func (r *HTTPTestStubReconciler) UpdateStubStatus(ctx context.Context, stub *httpteststubv1.HTTPTestStub) error {
+	key := fmt.Sprintf("%s/%s", stub.Namespace, stub.Name)
+
+	totalRequests, totalErrors, lastRequestTime, avgResponseTime, errorRate := GetStubStats(key)
+
+	stub.Status.Phase = "Running"
+	stub.Status.TotalRequests = totalRequests
+	stub.Status.TotalErrors = totalErrors
+	stub.Status.AvgResponseTime = avgResponseTime
+	stub.Status.ErrorRate = errorRate
+
+	if !lastRequestTime.IsZero() {
+		t := metav1.NewTime(lastRequestTime)
+		stub.Status.LastRequestTime = &t
+	}
+
+	return r.Status().Update(ctx, stub)
 }

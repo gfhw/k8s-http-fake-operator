@@ -85,8 +85,20 @@ type Counter struct {
 
 // HTTPTestStubStatus defines the observed state of HTTPTestStub
 type HTTPTestStubStatus struct {
-	Status       string `json:"status"`
-	RequestCount int    `json:"requestCount"`
+	// Phase 表示当前状态阶段：Pending, Running, Failed
+	Phase string `json:"phase,omitempty"`
+	// RequestCount 当前请求计数（用于计数器规则）
+	RequestCount int `json:"requestCount,omitempty"`
+	// TotalRequests 总请求数（累计）
+	TotalRequests int64 `json:"totalRequests,omitempty"`
+	// LastRequestTime 最后请求时间
+	LastRequestTime *metav1.Time `json:"lastRequestTime,omitempty"`
+	// AvgResponseTime 平均响应时间（毫秒）
+	AvgResponseTime int64 `json:"avgResponseTime,omitempty"`
+	// ErrorRate 错误率（百分比，0-100）
+	ErrorRate int `json:"errorRate,omitempty"`
+	// TotalErrors 总错误数
+	TotalErrors int64 `json:"totalErrors,omitempty"`
 }
 
 //+kubebuilder:object:root=true
