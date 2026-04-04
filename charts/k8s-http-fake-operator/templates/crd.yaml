@@ -267,3 +267,20 @@ spec:
     storage: true
     subresources:
       status: {}
+    additionalPrinterColumns:
+    - name: Phase
+      type: string
+      description: The phase of the stub
+      jsonPath: .status.phase
+    - name: Requests
+      type: integer
+      description: Total number of requests
+      jsonPath: .status.totalRequests
+    - name: Errors
+      type: integer
+      description: Total number of errors
+      jsonPath: .status.totalErrors
+    - name: ErrorRate
+      type: string
+      description: Error rate percentage
+      jsonPath: .status.errorRate
