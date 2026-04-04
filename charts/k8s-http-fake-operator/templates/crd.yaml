@@ -261,6 +261,10 @@ spec:
                 description: TotalErrors is the cumulative total number of errors
                 type: integer
                 format: int64
+              activeConnections:
+                description: ActiveConnections is the number of currently active connections
+                type: integer
+                format: int32
             type: object
         type: object
     served: true
@@ -284,3 +288,7 @@ spec:
       type: string
       description: Error rate percentage
       jsonPath: .status.errorRate
+    - name: ActiveConns
+      type: integer
+      description: Number of active connections
+      jsonPath: .status.activeConnections

@@ -99,6 +99,8 @@ type HTTPTestStubStatus struct {
 	ErrorRate int `json:"errorRate,omitempty"`
 	// TotalErrors 总错误数
 	TotalErrors int64 `json:"totalErrors,omitempty"`
+	// ActiveConnections 当前活跃连接数
+	ActiveConnections int32 `json:"activeConnections,omitempty"`
 }
 
 //+kubebuilder:object:root=true

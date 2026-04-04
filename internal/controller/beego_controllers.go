@@ -78,10 +78,17 @@ func (c *StubController) handleRequest(method string) {
 
 func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, method, path string, startTime time.Time, protocol string) {
 	stubKey := fmt.Sprintf("%s/%s/%s", stub.Namespace, stub.Name, protocol)
+
+	// 增加活跃连接数
+	IncrementActiveConnections(stubKey)
+	defer DecrementActiveConnections(stubKey)
+
 	isError := true
 	defer func() {
 		duration := time.Since(startTime)
 		RecordRequestStats(stubKey, duration, isError)
+		// 实时更新 CR status
+		UpdateStubStatusRealtime(stub.Namespace, stub.Name)
 	}()
 
 	for _, s := range stub.Spec.Stubs {

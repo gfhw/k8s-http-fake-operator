@@ -54,8 +54,17 @@ type StubStats struct {
 // stubStatsMap 存储每个 stub 的统计信息
 var stubStatsMap sync.Map
 
+// globalClient 全局 Kubernetes 客户端，用于实时更新 status
+var globalClient client.Client
+var clientOnce sync.Once
+
 func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+
+	// 初始化全局客户端
+	clientOnce.Do(func() {
+		globalClient = r.Client
+	})
 
 	var httpTestStub httpteststubv1.HTTPTestStub
 	if err := r.Get(ctx, req.NamespacedName, &httpTestStub); err != nil {
@@ -423,4 +432,116 @@ func (r *HTTPTestStubReconciler) UpdateStubStatus(ctx context.Context, stub *htt
 	}
 
 	return r.Status().Update(ctx, stub)
+}
+
+// activeConnectionsMap 跟踪每个 stub 的活跃连接数
+var activeConnectionsMap sync.Map
+
+// IncrementActiveConnections 增加活跃连接数
+func IncrementActiveConnections(stubKey string) {
+	count, _ := activeConnectionsMap.LoadOrStore(stubKey, int32(0))
+	activeConnectionsMap.Store(stubKey, count.(int32)+1)
+}
+
+// DecrementActiveConnections 减少活跃连接数
+func DecrementActiveConnections(stubKey string) {
+	count, exists := activeConnectionsMap.Load(stubKey)
+	if exists {
+		c := count.(int32)
+		if c > 0 {
+			activeConnectionsMap.Store(stubKey, c-1)
+		}
+	}
+}
+
+// GetActiveConnections 获取活跃连接数
+func GetActiveConnections(stubKey string) int32 {
+	count, exists := activeConnectionsMap.Load(stubKey)
+	if !exists {
+		return 0
+	}
+	return count.(int32)
+}
+
+// UpdateStubStatusRealtime 实时更新 stub 的 status 到 CR（非阻塞）
+func UpdateStubStatusRealtime(namespace, name string) {
+	if globalClient == nil {
+		return // 客户端未初始化，跳过
+	}
+
+	key := fmt.Sprintf("%s/%s", namespace, name)
+
+	// 获取 HTTP 和 HTTPS 的统计信息并合并
+	httpTotalRequests, httpTotalErrors, httpLastRequestTime, httpAvgResponseTime, _ := GetStubStats(key + "/http")
+	httpsTotalRequests, httpsTotalErrors, httpsLastRequestTime, httpsAvgResponseTime, _ := GetStubStats(key + "/https")
+
+	// 获取活跃连接数
+	httpActiveConns := GetActiveConnections(key + "/http")
+	httpsActiveConns := GetActiveConnections(key + "/https")
+
+	// 合并统计信息
+	totalRequests := httpTotalRequests + httpsTotalRequests
+	totalErrors := httpTotalErrors + httpsTotalErrors
+	activeConnections := httpActiveConns + httpsActiveConns
+
+	// 选择最近的请求时间
+	var lastRequestTime time.Time
+	if !httpLastRequestTime.IsZero() && !httpsLastRequestTime.IsZero() {
+		if httpLastRequestTime.After(httpsLastRequestTime) {
+			lastRequestTime = httpLastRequestTime
+		} else {
+			lastRequestTime = httpsLastRequestTime
+		}
+	} else if !httpLastRequestTime.IsZero() {
+		lastRequestTime = httpLastRequestTime
+	} else if !httpsLastRequestTime.IsZero() {
+		lastRequestTime = httpsLastRequestTime
+	}
+
+	// 计算加权平均响应时间
+	var avgResponseTime int64
+	if totalRequests > 0 {
+		totalDuration := httpTotalRequests*httpAvgResponseTime + httpsTotalRequests*httpsAvgResponseTime
+		avgResponseTime = totalDuration / totalRequests
+	}
+
+	// 计算总错误率
+	var errorRate int
+	if totalRequests > 0 {
+		errorRate = int(float64(totalErrors) * 100 / float64(totalRequests))
+	}
+
+	// 使用后台 goroutine 更新 status，避免阻塞请求处理
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		var stub httpteststubv1.HTTPTestStub
+		err := globalClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, &stub)
+		if err != nil {
+			return
+		}
+
+		stub.Status.Phase = "Running"
+		stub.Status.TotalRequests = totalRequests
+		stub.Status.TotalErrors = totalErrors
+		stub.Status.AvgResponseTime = avgResponseTime
+		stub.Status.ErrorRate = errorRate
+		stub.Status.ActiveConnections = activeConnections
+
+		if !lastRequestTime.IsZero() {
+			t := metav1.NewTime(lastRequestTime)
+			stub.Status.LastRequestTime = &t
+		}
+
+		// 获取计数器值作为 requestCount
+		if counter, exists := stubCounters.Load(key); exists {
+			c := counter.(*StubCounter)
+			c.mu.Lock()
+			stub.Status.RequestCount = c.count
+			c.mu.Unlock()
+		}
+
+		_ = globalClient.Status().Update(ctx, &stub)
+	}()
 }
