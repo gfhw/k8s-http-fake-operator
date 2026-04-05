@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"regexp"
@@ -129,14 +130,19 @@ func (c *StubController) handleStubResponse(stub *httpteststubv1.HTTPTestStub, m
 
 func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.Stub) bool {
 	count := IncrementCounter(stubKey)
+	log.Printf("[DEBUG] handleStubRules: stubKey=%s, count=%d", stubKey, count)
 
 	if stub.Counter.ResetAfter > 0 {
 		ResetCounter(stubKey, stub.Counter.ResetAfter)
+		log.Printf("[DEBUG] ResetCounter called: stubKey=%s, resetAfter=%d", stubKey, stub.Counter.ResetAfter)
 	}
 
 	// 先检查 range 规则
-	for _, rule := range stub.ResponseRules {
+	for i, rule := range stub.ResponseRules {
+		log.Printf("[DEBUG] Checking range rule %d: type=%s, start=%d, end=%d, count=%d",
+			i, rule.Rule.Type, rule.Rule.Start, rule.Rule.End, count)
 		if rule.Rule.Type == "range" && count >= rule.Rule.Start && count <= rule.Rule.End {
+			log.Printf("[DEBUG] Range rule %d matched! Returning status %d", i, rule.Response.Status)
 			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
@@ -145,8 +151,10 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 	}
 
 	// 再检查 default 规则（兜底规则）
-	for _, rule := range stub.ResponseRules {
+	for i, rule := range stub.ResponseRules {
+		log.Printf("[DEBUG] Checking default rule %d: type=%s", i, rule.Rule.Type)
 		if rule.Rule.Type == "default" {
+			log.Printf("[DEBUG] Default rule %d matched! Returning status %d", i, rule.Response.Status)
 			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
@@ -154,6 +162,7 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 		}
 	}
 
+	log.Printf("[DEBUG] No rules matched, returning default OK response")
 	c.Ctx.Output.SetStatus(http.StatusOK)
 	c.Ctx.Output.JSON(map[string]interface{}{
 		"result": true,

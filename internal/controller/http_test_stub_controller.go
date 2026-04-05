@@ -79,6 +79,7 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// 检查是否是新创建的 CR（不存在于缓存中）
 	_, existsInCache := stubCache.Load(key)
+	log.Info("[DEBUG] Reconcile: checking cache", "key", key, "existsInCache", existsInCache)
 
 	stubCache.Store(key, &httpTestStub)
 
@@ -94,7 +95,10 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// 检测 spec 是否变更，如果变更则重置统计信息
 	currentHash := calculateSpecHash(&httpTestStub.Spec)
+	log.Info("[DEBUG] Reconcile: checking spec hash", "key", key, "currentHash", currentHash)
+
 	if lastHash, exists := stubSpecHashMap.Load(key); exists {
+		log.Info("[DEBUG] Reconcile: lastHash exists", "key", key, "lastHash", lastHash, "currentHash", currentHash)
 		if lastHash.(string) != currentHash {
 			// spec 发生变更，重置统计信息
 			log.Info("HTTPTestStub spec changed, resetting stats", "name", httpTestStub.Name, "namespace", httpTestStub.Namespace)
@@ -268,6 +272,7 @@ func IncrementCounter(stubKey string) int {
 	defer c.mu.Unlock()
 
 	c.count++
+	logf.Log.Info("[DEBUG] IncrementCounter", "stubKey", stubKey, "count", c.count)
 	return c.count
 }
 
@@ -604,6 +609,8 @@ func calculateSpecHash(spec *httpteststubv1.HTTPTestStubSpec) string {
 
 // ResetStubStats 重置指定 stub 的所有统计信息
 func ResetStubStats(key string) {
+	logf.Log.Info("[DEBUG] ResetStubStats called", "key", key)
+
 	// 重置 HTTP 统计
 	httpKey := key + "/http"
 	stubStatsMap.Delete(httpKey)
@@ -619,4 +626,6 @@ func ResetStubStats(key string) {
 	httpsCounterKey := key + "/https"
 	stubCounters.Delete(httpCounterKey)
 	stubCounters.Delete(httpsCounterKey)
+
+	logf.Log.Info("[DEBUG] ResetStubStats completed", "key", key, "httpCounterKey", httpCounterKey, "httpsCounterKey", httpsCounterKey)
 }
