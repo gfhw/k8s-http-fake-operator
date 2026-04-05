@@ -305,6 +305,8 @@ test_example() {
         log_success "示例 '$example_name' 测试通过 ✓"
     else
         log_error "示例 '$example_name' 测试失败 ✗"
+        log_info "打印 Pod 日志以便调试..."
+        kubectl logs -l app.kubernetes.io/name=k8s-http-fake-operator -n default --tail=100
     fi
     
     return $test_result
