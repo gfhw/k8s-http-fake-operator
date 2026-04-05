@@ -8,10 +8,10 @@ metadata:
 spec:
   protocol: http
   request:
-    method: GET
+    method: POST
     url:
       type: exact
-      pattern: /api/inline
+      pattern: /api/inline-script
   response:
     type: script
     script:
@@ -19,8 +19,7 @@ spec:
       type: shell
       path: /tmp/inline_script.sh
       timeout: 10
-      input:
-        - "inline"
+      input: []
       content: |
-        #!/bin/bash
+        #!/bin/sh
         echo '{"status": "success", "source": "inline script", "timestamp": "'$(date -Iseconds)'"}'

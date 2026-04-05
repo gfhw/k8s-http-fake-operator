@@ -11,13 +11,20 @@ spec:
     method: GET
     url:
       type: pattern
-      pattern: /api/users/*/details
+      pattern: /api/users/*/status
+  response:
+    type: static
+    static:
+      status: 200
+      headers:
+        Content-Type: application/json
+      body: '{"user": "default", "status": "active"}'
   stubs:
     - request:
         method: GET
         url:
           type: pattern
-          pattern: /api/users/*/details
+          pattern: /api/users/*/status
       responseRules:
         - rule:
             type: range

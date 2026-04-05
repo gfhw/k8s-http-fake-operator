@@ -58,6 +58,39 @@ spec:
                     required:
                     - type
                     type: object
+                  body:
+                    description: Body 请求体匹配规则
+                    properties:
+                      type:
+                        type: string
+                        description: 匹配类型 (equal, contains, regex, jsonpath)
+                      value:
+                        type: string
+                        description: 匹配值
+                    required:
+                    - type
+                    - value
+                    type: object
+                  headers:
+                    description: Headers 请求头匹配规则
+                    items:
+                      description: Header 请求头匹配
+                      properties:
+                        name:
+                          type: string
+                          description: 请求头名称
+                        type:
+                          type: string
+                          description: 匹配类型 (equal, contains, regex)
+                        value:
+                          type: string
+                          description: 匹配值
+                      required:
+                      - name
+                      - type
+                      - value
+                      type: object
+                    type: array
                 required:
                 - method
                 - url
@@ -100,10 +133,56 @@ spec:
                         type: object
                       status:
                         type: integer
+                      delay:
+                        description: Delay 延迟配置
+                        properties:
+                          fixed:
+                            type: integer
+                            description: 固定延迟时间（毫秒）
+                          random:
+                            description: 随机延迟配置
+                            properties:
+                              min:
+                                type: integer
+                                description: 最小延迟时间（毫秒）
+                              max:
+                                type: integer
+                                description: 最大延迟时间（毫秒）
+                            required:
+                            - min
+                            - max
+                            type: object
+                        type: object
                     required:
                     - body
                     - headers
                     - status
+                    type: object
+                  proxy:
+                    description: Proxy 代理转发配置
+                    properties:
+                      target:
+                        type: string
+                        description: 目标地址，如 http://real-service:8080
+                      record:
+                        type: boolean
+                        description: 是否录制响应
+                      transform:
+                        description: 请求/响应转换配置
+                        properties:
+                          requestHeaders:
+                            additionalProperties:
+                              type: string
+                            type: object
+                            description: 添加/修改请求头
+                          responseHeaders:
+                            additionalProperties:
+                              type: string
+                            type: object
+                            description: 添加/修改响应头
+                        type: object
+                    required:
+                    - target
                     type: object
                   type:
                     type: string
@@ -168,6 +247,39 @@ spec:
                           required:
                           - type
                           type: object
+                        body:
+                          description: Body 请求体匹配规则
+                          properties:
+                            type:
+                              type: string
+                              description: 匹配类型 (equal, contains, regex, jsonpath)
+                            value:
+                              type: string
+                              description: 匹配值
+                          required:
+                          - type
+                          - value
+                          type: object
+                        headers:
+                          description: Headers 请求头匹配规则
+                          items:
+                            description: Header 请求头匹配
+                            properties:
+                              name:
+                                type: string
+                                description: 请求头名称
+                              type:
+                                type: string
+                                description: 匹配类型 (equal, contains, regex)
+                              value:
+                                type: string
+                                description: 匹配值
+                            required:
+                            - name
+                            - type
+                            - value
+                            type: object
+                          type: array
                       required:
                       - method
                       - url
@@ -187,6 +299,26 @@ spec:
                                 type: object
                               status:
                                 type: integer
+                              delay:
+                                description: Delay 延迟配置
+                                properties:
+                                  fixed:
+                                    type: integer
+                                    description: 固定延迟时间（毫秒）
+                                  random:
+                                    description: 随机延迟配置
+                                    properties:
+                                      min:
+                                        type: integer
+                                        description: 最小延迟时间（毫秒）
+                                      max:
+                                        type: integer
+                                        description: 最大延迟时间（毫秒）
+                                    required:
+                                    - min
+                                    - max
+                                    type: object
+                                type: object
                             required:
                             - body
                             - headers

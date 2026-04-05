@@ -14,10 +14,10 @@ spec:
       pattern: /api/secure
     headers:
       - name: Authorization
-        matcher: contains
+        type: contains
         value: Bearer
       - name: X-API-Version
-        matcher: equalTo
+        type: equal
         value: v1
   response:
     type: static

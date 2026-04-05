@@ -1,5 +1,5 @@
 # 示例4: 脚本响应
-# 使用外部脚本动态生成响应内容
+# 使用内联脚本动态生成响应内容
 apiVersion: httpteststub.example.com/v1
 kind: HTTPTestStub
 metadata:
@@ -17,8 +17,9 @@ spec:
     script:
       name: example-script
       type: shell
-      path: /scripts/example.sh
+      path: /tmp/example.sh
       timeout: 10
-      input:
-        - "arg1"
-        - "arg2"
+      input: []
+      content: |
+        #!/bin/sh
+        echo '{"status": "success", "message": "Script executed", "timestamp": "'$(date -Iseconds)'"}'

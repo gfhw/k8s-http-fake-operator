@@ -13,8 +13,7 @@ spec:
       type: exact
       pattern: /api/login
     body:
-      type: json
-      matcher: equalTo
+      type: equal
       value: '{"username": "admin", "password": "123456"}'
   response:
     type: static

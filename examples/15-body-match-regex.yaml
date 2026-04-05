@@ -13,9 +13,8 @@ spec:
       type: exact
       pattern: /api/validate
     body:
-      type: text
-      matcher: matches
-      value: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"  # 邮箱格式正则
+      type: regex
+      value: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
   response:
     type: static
     static:

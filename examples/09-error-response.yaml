@@ -12,6 +12,13 @@ spec:
     url:
       type: exact
       pattern: /api/error
+  response:
+    type: static
+    static:
+      status: 500
+      headers:
+        Content-Type: application/json
+      body: '{"error": "Internal Server Error", "code": 500}'
   stubs:
     - request:
         method: GET

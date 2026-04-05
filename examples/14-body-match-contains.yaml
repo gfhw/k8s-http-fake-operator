@@ -13,8 +13,7 @@ spec:
       type: exact
       pattern: /api/search
     body:
-      type: json
-      matcher: contains
+      type: contains
       value: "keyword"
   response:
     type: static

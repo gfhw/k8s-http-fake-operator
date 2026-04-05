@@ -8,16 +8,21 @@ metadata:
 spec:
   protocol: http
   request:
-    method: POST
+    method: GET
     url:
       type: exact
-      pattern: /api/delay
+      pattern: /api/script-delay
   response:
     type: script
     script:
       name: delay-script
       type: shell
-      path: /scripts/delay.sh
+      path: /tmp/delay.sh
       timeout: 15
       input:
-        - "5"
+        - "2"
+      content: |
+        #!/bin/sh
+        DELAY=${1:-1}
+        sleep $DELAY
+        echo '{"status": "success", "delay": "'$DELAY's", "message": "Delayed response"}'

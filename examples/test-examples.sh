@@ -247,12 +247,28 @@ test_example() {
             test_result=0
             ;;
         "20-head-method")
-            curl -s -I http://localhost:8080/api/resource | head -5
-            test_result=$?
+            log_info "测试 HEAD 方法..."
+            local head_status=$(curl -s -o /dev/null -w '%{http_code}' -I http://localhost:8080/api/resource)
+            log_info "HEAD 响应状态码: $head_status"
+            if [ "$head_status" == "200" ]; then
+                log_success "HEAD 方法测试通过"
+                test_result=0
+            else
+                log_error "HEAD 方法测试失败 (期望: 200, 实际: $head_status)"
+                test_result=1
+            fi
             ;;
         "21-options-method")
-            curl -s -X OPTIONS -I http://localhost:8080/api/resource | head -5
-            test_result=$?
+            log_info "测试 OPTIONS 方法..."
+            local options_status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -I http://localhost:8080/api/resource)
+            log_info "OPTIONS 响应状态码: $options_status"
+            if [ "$options_status" == "204" ]; then
+                log_success "OPTIONS 方法测试通过"
+                test_result=0
+            else
+                log_error "OPTIONS 方法测试失败 (期望: 204, 实际: $options_status)"
+                test_result=1
+            fi
             ;;
         *)
             log_warn "未定义测试用例，执行默认 GET 请求"
