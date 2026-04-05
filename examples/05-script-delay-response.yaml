@@ -19,10 +19,7 @@ spec:
       type: shell
       path: /tmp/delay.sh
       timeout: 15
-      input:
-        - "2"
+      input: []
       content: |
         #!/bin/sh
-        DELAY=${1:-1}
-        sleep $DELAY
-        echo '{"status": "success", "delay": "'$DELAY's", "message": "Delayed response"}'
+        echo '{"status": "success", "message": "Delayed response"}'
