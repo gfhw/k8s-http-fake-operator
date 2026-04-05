@@ -134,13 +134,19 @@ func (c *StubController) handleStubRules(stubKey string, stub *httpteststubv1.St
 		ResetCounter(stubKey, stub.Counter.ResetAfter)
 	}
 
+	// 先检查 range 规则
 	for _, rule := range stub.ResponseRules {
 		if rule.Rule.Type == "range" && count >= rule.Rule.Start && count <= rule.Rule.End {
 			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
 			return false // 成功，不是错误
-		} else if rule.Rule.Type == "default" {
+		}
+	}
+
+	// 再检查 default 规则（兜底规则）
+	for _, rule := range stub.ResponseRules {
+		if rule.Rule.Type == "default" {
 			if rule.Response != nil {
 				c.sendStaticResponse(rule.Response)
 			}
