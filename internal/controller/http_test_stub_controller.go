@@ -261,15 +261,14 @@ func matchRegex(url, regex string) bool {
 }
 
 func IncrementCounter(stubKey string) int {
-	if counter, ok := stubCounters.Load(stubKey); ok {
-		c := counter.(*StubCounter)
-		c.mu.Lock()
-		defer c.mu.Unlock()
+	// 确保计数器存在
+	counter, _ := stubCounters.LoadOrStore(stubKey, &StubCounter{})
+	c := counter.(*StubCounter)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-		c.count++
-		return c.count
-	}
-	return 0
+	c.count++
+	return c.count
 }
 
 func ResetCounter(stubKey string, resetAfter int) {
