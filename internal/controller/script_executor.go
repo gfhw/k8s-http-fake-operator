@@ -57,7 +57,16 @@ func (e *ScriptExecutor) Execute(script *httpteststubv1.Script, requestContext m
 	}
 
 	if len(script.Input) > 0 {
-		cmd.Args = append([]string{scriptPath}, script.Input...)
+		if script.Type == "shell" || script.Type == "sh" || script.Type == "bash" {
+			// For shell scripts, keep bash as first argument
+			cmd.Args = append(cmd.Args, script.Input...)
+		} else if script.Type == "python" || script.Type == "python3" || script.Type == "py" {
+			// For python scripts, keep python3 as first argument
+			cmd.Args = append(cmd.Args, script.Input...)
+		} else {
+			// For other script types, use script path as first argument
+			cmd.Args = append([]string{scriptPath}, script.Input...)
+		}
 	}
 
 	env := e.buildEnvironment(script, requestContext)
