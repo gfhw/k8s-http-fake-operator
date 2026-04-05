@@ -113,6 +113,13 @@ func (e *ScriptExecutor) buildEnvironment(script *httpteststubv1.Script, request
 		env = append(env, fmt.Sprintf("REQUEST_%s=%s", strings.ToUpper(key), fmt.Sprintf("%v", value)))
 	}
 
+	// 添加脚本环境变量
+	if script.Env != nil {
+		for key, value := range script.Env {
+			env = append(env, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
 	return env
 }
 

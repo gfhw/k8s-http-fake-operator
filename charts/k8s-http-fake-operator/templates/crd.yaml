@@ -115,6 +115,11 @@ spec:
                         type: integer
                       type:
                         type: string
+                      env:
+                        additionalProperties:
+                          type: string
+                        type: object
+                        description: 环境变量
                     required:
                     - input
                     - name
@@ -207,6 +212,11 @@ spec:
                       type: integer
                     type:
                       type: string
+                    env:
+                      additionalProperties:
+                        type: string
+                      type: object
+                      description: 环境变量
                   required:
                   - input
                   - name
