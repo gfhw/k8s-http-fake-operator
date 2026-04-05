@@ -615,6 +615,9 @@ func ResetStubStats(key string) {
 	stubStatsMap.Delete(httpsKey)
 	activeConnectionsMap.Delete(httpsKey)
 
-	// 重置计数器
-	stubCounters.Delete(key)
+	// 重置计数器（键包含协议）
+	httpCounterKey := key + "/http"
+	httpsCounterKey := key + "/https"
+	stubCounters.Delete(httpCounterKey)
+	stubCounters.Delete(httpsCounterKey)
 }
