@@ -77,6 +77,9 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	key := fmt.Sprintf("%s/%s", httpTestStub.Namespace, httpTestStub.Name)
 
+	// 检查是否是新创建的 CR（不存在于缓存中）
+	_, existsInCache := stubCache.Load(key)
+
 	stubCache.Store(key, &httpTestStub)
 
 	if _, exists := stubCounters.Load(key); !exists {
@@ -97,6 +100,10 @@ func (r *HTTPTestStubReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			log.Info("HTTPTestStub spec changed, resetting stats", "name", httpTestStub.Name, "namespace", httpTestStub.Namespace)
 			ResetStubStats(key)
 		}
+	} else if !existsInCache {
+		// 新创建的 CR，重置计数器
+		log.Info("HTTPTestStub created, resetting counter", "name", httpTestStub.Name, "namespace", httpTestStub.Namespace)
+		ResetStubStats(key)
 	}
 	stubSpecHashMap.Store(key, currentHash)
 
